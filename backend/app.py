@@ -11,6 +11,7 @@ sys.path.insert(0, str(Path(__file__).parent))
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
+from flask_sqlalchemy import SQLAlchemy
 from system_check import HardwareDetector, DatabaseManager, setup_logging
 
 # Setup logging
@@ -28,6 +29,10 @@ session = Session()
 
 # Import database models after Session is ready
 from database.models import Student, Scan
+from database.scan_models import (
+    ScanConfiguration, ScanPoint, Measurement, Defect,
+    ScanStatus, DefectType, Base as ScanBase
+)
 from vision.evaluator import WeldEvaluator
 from vision.calibration import Calibrator
 
@@ -72,6 +77,17 @@ try:
     logger.info("LED Controller initialized successfully")
 except Exception as e:
     logger.warning(f"LED Controller initialization failed: {e}")
+
+# Init Scan Routes (WeldVision X5)
+try:
+    from api.scan_routes import scan_bp, initialize_hardware
+    app.register_blueprint(scan_bp)
+    
+    # Initialize hardware for scanning
+    initialize_hardware(session)
+    logger.info("Scan routes registered and hardware initialized")
+except Exception as e:
+    logger.warning(f"Scan routes initialization failed: {e}")
 
 # ROS2 State
 current_frame = None

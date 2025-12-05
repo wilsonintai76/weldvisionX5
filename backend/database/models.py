@@ -41,4 +41,12 @@ class Scan(Base):
 def init_db(db_path='sqlite:///weld_data.db'):
     engine = create_engine(db_path)
     Base.metadata.create_all(engine)
+    
+    # Also create scan models tables
+    try:
+        from database.scan_models import Base as ScanBase
+        ScanBase.metadata.create_all(engine)
+    except Exception as e:
+        print(f"Warning: Could not create scan models: {e}")
+    
     return sessionmaker(bind=engine)
