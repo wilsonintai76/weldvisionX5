@@ -1,0 +1,484 @@
+/* Stereo Camera Calibration Component Styles */
+
+.stereo-calibration-container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 20px;
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+}
+
+.stereo-calibration-container h1 {
+  color: #2c3e50;
+  margin: 0 0 8px 0;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.stereo-calibration-container .subtitle {
+  color: #7f8c8d;
+  font-size: 14px;
+  margin: 0 0 20px 0;
+  font-style: italic;
+}
+
+/* Error Message */
+.error-message {
+  background: #fee;
+  border: 2px solid #f88;
+  color: #c33;
+  padding: 12px 16px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  font-weight: 500;
+}
+
+/* Control Panel */
+.control-panel {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 24px;
+  padding: 16px;
+  background: white;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Buttons */
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.btn-primary:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-secondary {
+  background: #95a5a6;
+  color: white;
+}
+
+.btn-secondary:hover:not(:disabled) {
+  background: #7f8c8d;
+  transform: translateY(-2px);
+}
+
+.btn-danger {
+  background: #e74c3c;
+  color: white;
+}
+
+.btn-danger:hover {
+  background: #c0392b;
+  transform: translateY(-2px);
+}
+
+.btn-success {
+  background: #27ae60;
+  color: white;
+}
+
+.btn-success:hover {
+  background: #229954;
+  transform: translateY(-2px);
+}
+
+.btn-large {
+  padding: 12px 28px;
+  font-size: 15px;
+}
+
+/* Configuration Panel */
+.config-panel {
+  background: white;
+  border: 2px solid #ecf0f1;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.config-panel h3 {
+  color: #2c3e50;
+  margin: 0 0 16px 0;
+}
+
+.config-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.config-field {
+  display: flex;
+  flex-direction: column;
+}
+
+.config-field label {
+  font-weight: 600;
+  color: #34495e;
+  margin-bottom: 6px;
+  font-size: 13px;
+}
+
+.config-field input {
+  padding: 8px 12px;
+  border: 2px solid #bdc3c7;
+  border-radius: 4px;
+  font-size: 13px;
+  transition: border-color 0.3s;
+}
+
+.config-field input:focus {
+  outline: none;
+  border-color: #667eea;
+}
+
+.config-field input:disabled {
+  background: #ecf0f1;
+  color: #95a5a6;
+}
+
+/* Status Panel */
+.status-panel {
+  background: white;
+  border: 2px solid #ecf0f1;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.status-panel h3 {
+  color: #2c3e50;
+  margin: 0 0 16px 0;
+}
+
+.status-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+  margin-bottom: 20px;
+}
+
+.status-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px;
+  background: #f8f9fa;
+  border-radius: 6px;
+  border-left: 4px solid #667eea;
+}
+
+.status-item label {
+  font-weight: 600;
+  color: #34495e;
+  font-size: 13px;
+}
+
+.status-value {
+  font-size: 14px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+.status-value.message {
+  font-style: italic;
+  color: #7f8c8d;
+  font-weight: 500;
+  word-break: break-word;
+}
+
+.state-idle {
+  color: #95a5a6;
+}
+
+.state-homing {
+  color: #f39c12;
+}
+
+.state-positioning {
+  color: #3498db;
+}
+
+.state-capturing {
+  color: #2980b9;
+}
+
+.state-processing {
+  color: #8e44ad;
+}
+
+.state-validating {
+  color: #16a085;
+}
+
+.state-complete {
+  color: #27ae60;
+}
+
+.state-error {
+  color: #e74c3c;
+}
+
+/* Progress Bar */
+.progress-bar-container {
+  width: 100%;
+  height: 8px;
+  background: #ecf0f1;
+  border-radius: 4px;
+  overflow: hidden;
+  margin-top: 16px;
+}
+
+.progress-bar-fill {
+  height: 100%;
+  background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+  transition: width 0.3s ease;
+  border-radius: 4px;
+}
+
+/* Results Panel */
+.results-panel {
+  background: white;
+  border: 2px solid #ecf0f1;
+  border-radius: 8px;
+  padding: 20px;
+  margin-bottom: 24px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
+}
+
+.results-panel h3 {
+  color: #2c3e50;
+  margin: 0 0 20px 0;
+}
+
+.results-section {
+  margin-bottom: 24px;
+  padding: 16px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.results-section h4 {
+  color: #34495e;
+  margin: 0 0 12px 0;
+  font-size: 15px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+/* Metrics Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 12px;
+}
+
+.metric {
+  padding: 12px;
+  background: white;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+  text-align: center;
+}
+
+.metric label {
+  display: block;
+  font-size: 12px;
+  font-weight: 600;
+  color: #7f8c8d;
+  margin-bottom: 4px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.metric span {
+  display: block;
+  font-size: 16px;
+  font-weight: 700;
+  color: #2c3e50;
+}
+
+/* Intrinsics Grid */
+.intrinsics-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 16px;
+}
+
+.intrinsic-camera {
+  background: white;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #bdc3c7;
+}
+
+.intrinsic-camera h5 {
+  color: #34495e;
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.matrix-display {
+  font-family: 'Courier New', monospace;
+  font-size: 12px;
+  background: #ecf0f1;
+  padding: 8px;
+  border-radius: 3px;
+  margin-bottom: 8px;
+  overflow-x: auto;
+}
+
+.matrix-row {
+  display: flex;
+  justify-content: space-around;
+  margin: 4px 0;
+}
+
+.matrix-row span {
+  min-width: 60px;
+  text-align: right;
+  color: #2c3e50;
+}
+
+.distortion-display,
+.vector-display {
+  font-size: 12px;
+  background: #ecf0f1;
+  padding: 8px;
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+  overflow-x: auto;
+}
+
+.vector-row {
+  display: flex;
+  justify-content: space-between;
+  padding: 2px 0;
+  color: #2c3e50;
+}
+
+/* Geometry Grid */
+.geometry-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.geometry-item {
+  background: white;
+  padding: 12px;
+  border-radius: 4px;
+  border: 1px solid #bdc3c7;
+}
+
+.geometry-item h5 {
+  color: #34495e;
+  margin: 0 0 8px 0;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+/* Empty State */
+.empty-state {
+  text-align: center;
+  padding: 40px 20px;
+  background: white;
+  border: 2px dashed #bdc3c7;
+  border-radius: 8px;
+  color: #7f8c8d;
+}
+
+.empty-state p {
+  margin: 8px 0;
+  font-size: 14px;
+}
+
+.empty-state .hint {
+  font-size: 12px;
+  font-style: italic;
+  color: #95a5a6;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .stereo-calibration-container {
+    padding: 12px;
+  }
+
+  .stereo-calibration-container h1 {
+    font-size: 22px;
+  }
+
+  .control-panel {
+    flex-direction: column;
+  }
+
+  .btn {
+    width: 100%;
+  }
+
+  .config-grid,
+  .status-grid,
+  .metrics-grid,
+  .intrinsics-grid,
+  .geometry-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .status-item {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
+  .matrix-display {
+    font-size: 11px;
+  }
+
+  .matrix-row span {
+    min-width: 45px;
+  }
+}
+
+/* Animation */
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.btn:not(:disabled):active {
+  transform: scale(0.98);
+}

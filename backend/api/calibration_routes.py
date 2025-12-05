@@ -1,16 +1,19 @@
 """
 API Routes for Camera Calibration with Triple Z-Axis Support
 
-Endpoints for bed tilt calibration, probe fitting, and Z-motor offset calculation
+Endpoints for bed tilt calibration, probe fitting, Z-motor offset calculation,
+and automatic stereo camera calibration using triple Z-axis positioning
 """
 
 from flask import Blueprint, request, jsonify
 from sqlalchemy.orm import Session
 import logging
 from typing import Optional
+import threading
 
 from hardware.camera_calibration import CameraCalibration, BedTiltPlane
 from hardware.printer_controller import PrinterController
+from hardware.stereo_calibration_auto import AutoStereoCameraCalibration, CalibrationState
 
 logger = logging.getLogger(__name__)
 
@@ -20,6 +23,8 @@ calibration_bp = Blueprint('calibration', __name__, url_prefix='/api/calibration
 # Global instances
 calibration: Optional[CameraCalibration] = None
 printer_controller: Optional[PrinterController] = None
+stereo_calibrator: Optional[AutoStereoCameraCalibration] = None
+calibration_thread: Optional[threading.Thread] = None
 
 
 def initialize_calibration() -> bool:
@@ -345,6 +350,206 @@ def get_calibration_report():
         report = calibration.get_calibration_report()
         
         return jsonify(report), 200
+
+
+# ==================== AUTOMATIC STEREO CALIBRATION ENDPOINTS ====================
+
+
+@calibration_bp.route('/stereo/auto/start', methods=['POST'])
+def start_auto_stereo_calibration():
+    """
+    Start automatic stereo camera calibration using triple Z-axis
+    
+    Initiates full calibration sequence:
+    1. Generate 15-20 capture points with varying heights and tilts
+    2. Position camera at each point using triple Z motors
+    3. Capture stereo pairs and detect checkerboard patterns
+    4. Compute stereo parameters (intrinsics, baseline, rotation, translation)
+    5. Validate accuracy with epipolar constraints
+    
+    Returns:
+        Dict with calibration job ID and status
+    """
+    global stereo_calibrator, calibration_thread
+    
+    try:
+        # Initialize stereo calibrator if needed
+        if stereo_calibrator is None:
+            stereo_calibrator = AutoStereoCameraCalibration(
+                printer_controller=printer_controller,
+                camera_left=None,  # Inject actual camera objects
+                camera_right=None
+            )
+        
+        # Check if calibration already running
+        if calibration_thread and calibration_thread.is_alive():
+            return jsonify({
+                'status': 'running',
+                'message': 'Calibration already in progress',
+                'progress': stereo_calibrator.get_status()
+            }), 400
+        
+        # Start calibration in background thread
+        calibration_thread = threading.Thread(
+            target=stereo_calibrator.run_full_calibration,
+            daemon=True
+        )
+        calibration_thread.start()
+        
+        return jsonify({
+            'status': 'started',
+            'message': 'Automatic stereo calibration started',
+            'job_id': 'stereo_calib_' + str(id(stereo_calibrator))
+        }), 202
+        
+    except Exception as e:
+        logger.error(f"Error starting stereo calibration: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@calibration_bp.route('/stereo/auto/status', methods=['GET'])
+def get_stereo_calibration_status():
+    """Get current auto stereo calibration status and progress"""
+    try:
+        if stereo_calibrator is None:
+            return jsonify({
+                'status': 'idle',
+                'message': 'No calibration in progress'
+            }), 200
+        
+        status = stereo_calibrator.get_status()
+        status['calibration_running'] = calibration_thread and calibration_thread.is_alive()
+        
+        return jsonify(status), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting calibration status: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@calibration_bp.route('/stereo/auto/results', methods=['GET'])
+def get_stereo_calibration_results():
+    """Get automatic stereo calibration results"""
+    try:
+        if stereo_calibrator is None:
+            return jsonify({'error': 'No calibration completed'}), 404
+        
+        if stereo_calibrator.state != CalibrationState.COMPLETE:
+            return jsonify({
+                'status': 'not_ready',
+                'state': stereo_calibrator.state.value,
+                'message': 'Calibration not yet complete'
+            }), 202
+        
+        results = {
+            'status': 'complete',
+            'baseline': float(stereo_calibrator.stereo_pair.baseline),
+            'reprojection_error': float(stereo_calibrator.stereo_pair.reprojection_error),
+            'left_intrinsics': stereo_calibrator.stereo_pair.left_intrinsics.tolist(),
+            'left_distortion': stereo_calibrator.stereo_pair.left_distortion.flatten().tolist(),
+            'right_intrinsics': stereo_calibrator.stereo_pair.right_intrinsics.tolist(),
+            'right_distortion': stereo_calibrator.stereo_pair.right_distortion.flatten().tolist(),
+            'rotation_matrix': stereo_calibrator.stereo_pair.rotation_matrix.tolist(),
+            'translation_vector': stereo_calibrator.stereo_pair.translation_vector.flatten().tolist(),
+            'total_captures': stereo_calibrator.total_captures,
+            'successful_captures': stereo_calibrator.successful_captures,
+            'capture_success_rate': stereo_calibrator.successful_captures / stereo_calibrator.total_captures * 100
+        }
+        
+        return jsonify(results), 200
+        
+    except Exception as e:
+        logger.error(f"Error getting calibration results: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@calibration_bp.route('/stereo/auto/stop', methods=['POST'])
+def stop_stereo_calibration():
+    """Stop ongoing automatic stereo calibration"""
+    try:
+        if stereo_calibrator is None:
+            return jsonify({'message': 'No calibration running'}), 200
+        
+        stereo_calibrator.stop_calibration()
+        
+        return jsonify({
+            'status': 'stopped',
+            'message': 'Calibration stop requested',
+            'captures_completed': stereo_calibrator.successful_captures
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"Error stopping calibration: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@calibration_bp.route('/stereo/auto/save', methods=['POST'])
+def save_stereo_calibration():
+    """Save completed stereo calibration to file"""
+    try:
+        if stereo_calibrator is None:
+            return jsonify({'error': 'No calibration data available'}), 404
+        
+        data = request.get_json() or {}
+        filename = data.get('filename', 'stereo_calibration.json')
+        
+        if stereo_calibrator.save_calibration(filename):
+            return jsonify({
+                'status': 'saved',
+                'filename': filename,
+                'message': f'Calibration saved to {filename}'
+            }), 200
+        else:
+            return jsonify({'error': 'Failed to save calibration'}), 500
+            
+    except Exception as e:
+        logger.error(f"Error saving calibration: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@calibration_bp.route('/stereo/auto/config', methods=['GET', 'POST'])
+def stereo_calibration_config():
+    """Get/set automatic stereo calibration configuration"""
+    try:
+        if stereo_calibrator is None:
+            stereo_calibrator = AutoStereoCameraCalibration(
+                printer_controller=printer_controller
+            )
+        
+        if request.method == 'GET':
+            return jsonify({
+                'total_captures': stereo_calibrator.total_captures,
+                'heights': stereo_calibrator.heights.tolist() if hasattr(stereo_calibrator.heights, 'tolist') else stereo_calibrator.heights,
+                'tilt_angles': stereo_calibrator.tilt_angles.tolist() if hasattr(stereo_calibrator.tilt_angles, 'tolist') else stereo_calibrator.tilt_angles,
+                'z_sweep_range': list(stereo_calibrator.z_sweep_range),
+                'pattern_board_size': stereo_calibrator.pattern.board_size,
+                'pattern_square_size': stereo_calibrator.pattern.square_size
+            }), 200
+        
+        elif request.method == 'POST':
+            data = request.get_json() or {}
+            
+            if 'heights' in data:
+                import numpy as np
+                stereo_calibrator.heights = np.array(data['heights'])
+            if 'tilt_angles' in data:
+                import numpy as np
+                stereo_calibrator.tilt_angles = np.array(data['tilt_angles'])
+            if 'z_sweep_range' in data:
+                stereo_calibrator.z_sweep_range = tuple(data['z_sweep_range'])
+            if 'pattern_board_size' in data:
+                stereo_calibrator.pattern.board_size = tuple(data['pattern_board_size'])
+            if 'pattern_square_size' in data:
+                stereo_calibrator.pattern.square_size = data['pattern_square_size']
+            
+            return jsonify({
+                'status': 'configured',
+                'message': 'Stereo calibration configuration updated'
+            }), 200
+            
+    except Exception as e:
+        logger.error(f"Error with stereo calibration config: {e}")
+        return jsonify({'error': str(e)}), 500
         
     except Exception as e:
         logger.error(f"Report error: {e}")

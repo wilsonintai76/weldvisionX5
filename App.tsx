@@ -50,6 +50,7 @@ import { fetchStudents, fetchHistory, triggerScan, addStudent, updateStudent, de
 import { MetricCard } from './components/MetricCard';
 import UserGuide from './components/UserGuide';
 import { LEDControl } from './components/LEDControl';
+import StereoCameraCalibration from './components/StereoCameraCalibration';
 
 // --- Sub-Components ---
 
