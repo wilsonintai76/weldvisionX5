@@ -3,6 +3,12 @@ import json
 import time
 import logging
 import os
+import sys
+from pathlib import Path
+
+# Add backend to path
+sys.path.insert(0, str(Path(__file__).parent))
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from system_check import HardwareDetector, DatabaseManager, setup_logging

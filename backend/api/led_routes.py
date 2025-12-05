@@ -4,7 +4,7 @@ Provides REST API for LED control integration
 """
 
 from flask import Blueprint, request, jsonify
-from backend.vision.led_control import create_led_controller, LEDControlMode
+from vision.led_control import create_led_controller, LEDControlMode
 import logging
 
 logger = logging.getLogger(__name__)
