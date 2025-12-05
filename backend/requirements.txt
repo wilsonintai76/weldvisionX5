@@ -4,3 +4,21 @@ sqlalchemy
 opencv-python
 numpy
 pyyaml
+
+# ROS2 Integration (optional, for RDK X5)
+# Uncomment when deploying on RDK X5 with ROS2 installed
+# rclpy
+# ros2
+# cv_bridge
+# sensor_msgs
+# std_msgs
+
+# LED Control (optional)
+# pyusb
+
+# Performance Optimization
+gunicorn
+gevent
+
+# Development
+python-dotenv

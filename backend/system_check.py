@@ -100,17 +100,31 @@ class HardwareDetector:
             self.detection_messages.append(msg)
     
     def _detect_ros2(self):
-        """Detect ROS2 availability"""
+        """Detect ROS2 availability and configuration"""
         try:
             # Try to import ROS2
             import rclpy
             self.ros2_available = True
-            msg = f"✅ ROS2 available (rclpy version: {rclpy.__version__ if hasattr(rclpy, '__version__') else 'unknown'})"
+            
+            # Get ROS2 version info
+            version = rclpy.__version__ if hasattr(rclpy, '__version__') else 'unknown'
+            distro = os.environ.get('ROS_DISTRO', 'unknown')
+            
+            msg = f"✅ ROS2 available (rclpy: {version}, distro: {distro})"
             logger.info(msg)
             self.detection_messages.append(msg)
+            
+            # Check for DDS implementation
+            rmw_impl = os.environ.get('RMW_IMPLEMENTATION', 'default')
+            logger.debug(f"ROS2 DDS Implementation: {rmw_impl}")
+            
         except ImportError:
             msg = "⚠️ ROS2 not available (rclpy not installed)"
             logger.warning(msg)
+            self.detection_messages.append(msg)
+        except Exception as e:
+            msg = f"❌ Error detecting ROS2: {str(e)}"
+            logger.error(msg)
             self.detection_messages.append(msg)
     
     def _detect_camera(self):

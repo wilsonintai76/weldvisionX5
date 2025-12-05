@@ -79,49 +79,77 @@ current_depth = None
 frame_lock = threading.Lock()
 camera_thread = None
 
-class CameraNode(threading.Thread):
-    def __init__(self):
-        super().__init__()
-        self.daemon = True
-        self.running = True
-        
-    def run(self):
-        if not ROS_AVAILABLE:
-            logger.warning("ROS2 not available, camera thread will not start")
-            return
-        
-        try:
-            logger.info("Starting ROS2 camera node...")
-            rclpy.init()
-            node = rclpy.create_node('weld_eval_backend')
-            bridge = CvBridge()
+# Import optimized camera node for RDK X5
+try:
+    from api.optimized_camera_node import OptimizedCameraNode
+    OPTIMIZED_CAMERA_AVAILABLE = True
+except ImportError:
+    OPTIMIZED_CAMERA_AVAILABLE = False
+    
+    # Fallback to original camera node
+    class CameraNode(threading.Thread):
+        def __init__(self):
+            super().__init__()
+            self.daemon = True
+            self.running = True
             
-            def img_cb(msg):
-                global current_frame
-                with frame_lock:
-                    current_frame = bridge.imgmsg_to_cv2(msg, "bgr8")
-                    logger.debug("Frame received")
-                    
-            def depth_cb(msg):
-                global current_depth
-                with frame_lock:
-                    current_depth = bridge.imgmsg_to_cv2(msg, "16UC1")
-                    logger.debug("Depth data received")
+        def run(self):
+            if not ROS_AVAILABLE:
+                logger.warning("ROS2 not available, camera thread will not start")
+                return
+            
+            try:
+                logger.info("Starting ROS2 camera node (legacy mode)...")
+                rclpy.init()
+                node = rclpy.create_node('weld_eval_backend')
+                bridge = CvBridge()
                 
-            node.create_subscription(Image, '/image_raw', img_cb, 10)
-            node.create_subscription(Image, '/depth_raw', depth_cb, 10)
-            logger.info("ROS2 camera node subscribed to /image_raw and /depth_raw")
-            rclpy.spin(node)
-        except Exception as e:
-            logger.error(f"Camera node error: {e}")
-            self.running = False
+                def img_cb(msg):
+                    global current_frame
+                    with frame_lock:
+                        current_frame = bridge.imgmsg_to_cv2(msg, "bgr8")
+                        logger.debug("Frame received")
+                        
+                def depth_cb(msg):
+                    global current_depth
+                    with frame_lock:
+                        current_depth = bridge.imgmsg_to_cv2(msg, "16UC1")
+                        logger.debug("Depth data received")
+                    
+                node.create_subscription(Image, '/image_raw', img_cb, 10)
+                node.create_subscription(Image, '/depth_raw', depth_cb, 10)
+                logger.info("ROS2 camera node subscribed to /image_raw and /depth_raw")
+                rclpy.spin(node)
+            except Exception as e:
+                logger.error(f"Camera node error: {e}")
+                self.running = False
 
 # Start camera thread if ROS2 is available
 if ROS_AVAILABLE and hardware_status['ros2_available']:
     logger.info("Starting camera thread...")
-    camera_thread = CameraNode()
+    
+    if OPTIMIZED_CAMERA_AVAILABLE:
+        logger.info("Using optimized camera node for RDK X5")
+        camera_thread = OptimizedCameraNode(
+            node_name='weld_eval_backend',
+            executor_type='MultiThreadedExecutor',
+            num_threads=4
+        )
+    else:
+        logger.info("Using legacy camera node")
+        camera_thread = CameraNode()
+    
     camera_thread.start()
     logger.info("Camera thread started")
+    
+    # Register cleanup on shutdown
+    def cleanup_camera():
+        if camera_thread and camera_thread.running:
+            camera_thread.stop() if hasattr(camera_thread, 'stop') else setattr(camera_thread, 'running', False)
+            logger.info("Camera thread stopped")
+    
+    import atexit
+    atexit.register(cleanup_camera)
 else:
     logger.warning("Camera thread NOT started - ROS2 or camera not available")
 
@@ -386,6 +414,7 @@ def system_diagnostics():
             'endpoints': [
                 'GET /api/health',
                 'GET /api/system/diagnostics',
+                'GET /api/ros2/health',
                 'GET /api/students',
                 'POST /api/students',
                 'PUT /api/students/<id>',
@@ -406,6 +435,43 @@ def system_diagnostics():
     
     return jsonify(diagnostics), 200
 
+
+@app.route('/api/ros2/health', methods=['GET'])
+def ros2_health():
+    """ROS2 and camera node health monitoring"""
+    try:
+        health_data = {
+            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S'),
+            'ros2_available': ROS_AVAILABLE and hardware_status.get('ros2_available', False),
+            'camera_thread_running': camera_thread is not None and camera_thread.is_alive() if camera_thread else False,
+            'camera_mode': 'optimized' if OPTIMIZED_CAMERA_AVAILABLE else 'legacy',
+        }
+        
+        # Add camera node health if using optimized version
+        if hasattr(camera_thread, 'get_health_status'):
+            try:
+                health_data['node_health'] = camera_thread.get_health_status()
+            except Exception as e:
+                logger.warning(f"Failed to get node health: {e}")
+        
+        # Add current frame info
+        health_data['current_frame'] = {
+            'available': current_frame is not None,
+            'shape': current_frame.shape if current_frame is not None else None,
+        }
+        
+        health_data['current_depth'] = {
+            'available': current_depth is not None,
+            'shape': current_depth.shape if current_depth is not None else None,
+        }
+        
+        return jsonify(health_data), 200
+        
+    except Exception as e:
+        logger.error(f"ROS2 health check failed: {e}")
+        return jsonify({'error': str(e), 'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')}), 500
+
+
 if __name__ == '__main__':
     # Get info for startup logging
     db_info = db_manager.get_db_status()
@@ -422,6 +488,7 @@ if __name__ == '__main__':
     logger.info("Starting Flask API server on http://0.0.0.0:5000")
     logger.info("Health Check: http://localhost:5000/api/health")
     logger.info("Diagnostics: http://localhost:5000/api/system/diagnostics")
+    logger.info("ROS2 Health: http://localhost:5000/api/ros2/health")
     logger.info("=" * 70)
     
     app.run(host='0.0.0.0', port=5000, debug=False)
