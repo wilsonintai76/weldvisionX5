@@ -58,6 +58,15 @@ app.config['DB_MANAGER'] = db_manager
 calibrator = Calibrator()
 evaluator = WeldEvaluator(calibrator)
 
+# Init LED Control
+from api.led_routes import init_led_controller, get_led_blueprint
+try:
+    init_led_controller(app, mode="pwm")
+    app.register_blueprint(get_led_blueprint())
+    logger.info("LED Controller initialized successfully")
+except Exception as e:
+    logger.warning(f"LED Controller initialization failed: {e}")
+
 # ROS2 State
 current_frame = None
 current_depth = None

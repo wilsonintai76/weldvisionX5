@@ -29,7 +29,8 @@ import {
   ArrowUpDown,
   ChevronLeft,
   Filter,
-  HelpCircle
+  HelpCircle,
+  Lightbulb
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -48,6 +49,7 @@ import { RUBRIC_PRESETS, CAMERA_FEED_PLACEHOLDER } from './constants';
 import { fetchStudents, fetchHistory, triggerScan, addStudent, updateStudent, deleteStudent, triggerCalibration, saveCalibration, getRubric, saveRubric } from './services/apiService';
 import { MetricCard } from './components/MetricCard';
 import UserGuide from './components/UserGuide';
+import { LEDControl } from './components/LEDControl';
 
 // --- Sub-Components ---
 
@@ -992,6 +994,15 @@ const SettingsView = ({
                 </div>
              </div>
            </div>
+        </div>
+
+        {/* LED Control Section */}
+        <div className="mt-8 pt-8 border-t border-slate-700">
+          <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
+            <Lightbulb className="w-6 h-6 mr-3 text-industrial-orange" />
+            Lighting Control
+          </h2>
+          <LEDControl />
         </div>
       </div>
     </div>
