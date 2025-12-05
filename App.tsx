@@ -51,6 +51,9 @@ import { MetricCard } from './components/MetricCard';
 import UserGuide from './components/UserGuide';
 import { LEDControl } from './components/LEDControl';
 import StereoCameraCalibration from './components/StereoCameraCalibration';
+import BedCalibration from './components/BedCalibration';
+import PanoramaScannerView from './components/PanoramaScannerView';
+import SafeMotionControlView from './components/SafeMotionControlView';
 
 // --- Sub-Components ---
 
@@ -1614,6 +1617,30 @@ const App: React.FC = () => {
             onClick={() => setView(ViewState.CALIBRATION)} 
           />
           <SidebarItem 
+            icon={Ruler} 
+            label="Bed Tilt" 
+            active={view === ViewState.BED_TILT_CALIBRATION} 
+            onClick={() => setView(ViewState.BED_TILT_CALIBRATION)} 
+          />
+          <SidebarItem 
+            icon={Camera} 
+            label="Stereo Calibration" 
+            active={view === ViewState.STEREO_CALIBRATION} 
+            onClick={() => setView(ViewState.STEREO_CALIBRATION)} 
+          />
+          <SidebarItem 
+            icon={Sparkles} 
+            label="Panorama Scanner" 
+            active={view === ViewState.PANORAMA_SCANNER} 
+            onClick={() => setView(ViewState.PANORAMA_SCANNER)} 
+          />
+          <SidebarItem 
+            icon={Cpu} 
+            label="Safe Motion" 
+            active={view === ViewState.SAFE_MOTION} 
+            onClick={() => setView(ViewState.SAFE_MOTION)} 
+          />
+          <SidebarItem 
             icon={Settings} 
             label="Settings" 
             active={view === ViewState.SETTINGS} 
@@ -1658,6 +1685,10 @@ const App: React.FC = () => {
               {view === ViewState.STUDENTS && 'Class Management'}
               {view === ViewState.HISTORY && 'Scan Archives'}
               {view === ViewState.CALIBRATION && 'System Calibration'}
+              {view === ViewState.BED_TILT_CALIBRATION && 'Bed Tilt Calibration'}
+              {view === ViewState.STEREO_CALIBRATION && 'Stereo Camera Calibration'}
+              {view === ViewState.PANORAMA_SCANNER && 'Panorama Scanner'}
+              {view === ViewState.SAFE_MOTION && 'Safe Motion Control'}
               {view === ViewState.SETTINGS && 'System Configuration'}
             </h2>
             <p className="text-slate-400 text-sm mt-1">
@@ -1705,6 +1736,18 @@ const App: React.FC = () => {
         )}
         {view === ViewState.CALIBRATION && (
           <CalibrationView />
+        )}
+        {view === ViewState.BED_TILT_CALIBRATION && (
+          <BedCalibration />
+        )}
+        {view === ViewState.STEREO_CALIBRATION && (
+          <StereoCameraCalibration />
+        )}
+        {view === ViewState.PANORAMA_SCANNER && (
+          <PanoramaScannerView />
+        )}
+        {view === ViewState.SAFE_MOTION && (
+          <SafeMotionControlView />
         )}
         {view === ViewState.SETTINGS && (
           <SettingsView currentRubric={rubric} onSaveRubric={handleSaveRubric} />

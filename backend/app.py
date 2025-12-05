@@ -100,6 +100,22 @@ try:
 except Exception as e:
     logger.warning(f"Calibration routes initialization failed: {e}")
 
+# Init SmartRigController Routes (Panorama Scanning)
+try:
+    from api.smart_rig_routes import smart_rig_bp
+    app.register_blueprint(smart_rig_bp)
+    logger.info("SmartRigController routes registered")
+except Exception as e:
+    logger.warning(f"SmartRigController routes initialization failed: {e}")
+
+# Init SafeMotionController Routes (Virtual Zero)
+try:
+    from api.safe_motion_routes import safe_motion_bp
+    app.register_blueprint(safe_motion_bp)
+    logger.info("SafeMotionController routes registered")
+except Exception as e:
+    logger.warning(f"SafeMotionController routes initialization failed: {e}")
+
 # ROS2 State
 current_frame = None
 current_depth = None
