@@ -30,7 +30,7 @@ class ScanState(Enum):
 
 @dataclass
 class ScanConfiguration:
-    """Scanning configuration"""
+    """Scanning configuration with triple Z-axis support"""
     # Grid parameters
     grid_x_min: float = 50.0
     grid_x_max: float = 200.0
@@ -40,6 +40,10 @@ class ScanConfiguration:
     
     # Z-axis (camera height above workpiece)
     scan_z_height: float = 10.0  # mm above part
+    
+    # Triple Z-axis support for bed tilt
+    enable_triple_z: bool = True
+    use_calibrated_tilt: bool = False  # Use stored bed tilt calibration
     
     # Capture parameters
     capture_dwell_time: float = 0.5  # seconds at each position
@@ -354,6 +358,105 @@ class ScanOrchestrator:
             logger.info("Scan resumed")
             return True
         return False
+    
+    def calibrate_bed_with_triple_z(self) -> Optional[Dict]:
+        """
+        Calibrate bed tilt using triple Z-axis
+        
+        Returns:
+            Calibration result dict
+        """
+        try:
+            if not hasattr(self.printer, 'calibrate_bed_tilt'):
+                logger.error("Printer does not support triple Z-axis calibration")
+                return None
+            
+            logger.info("Starting bed tilt calibration with triple Z-axis...")
+            
+            result = self.printer.calibrate_bed_tilt(calibration_grid=(3, 3))
+            
+            if result and result.get('status') == 'success':
+                logger.info("Bed calibration completed successfully")
+                # Store calibration for use in scans
+                self.config.use_calibrated_tilt = True
+                return result
+            else:
+                logger.error("Bed calibration failed")
+                return None
+                
+        except Exception as e:
+            logger.error(f"Calibration error: {e}")
+            return None
+    
+    def scan_with_triple_z(self, scan_id: str, config: ScanConfiguration = None,
+                          use_calibration: bool = True) -> bool:
+        """
+        Start scan using triple Z-axis with bed tilt compensation
+        
+        Args:
+            scan_id: Unique scan identifier
+            config: Scan configuration
+            use_calibration: Use calibrated bed tilt
+            
+        Returns:
+            True if scan started
+        """
+        try:
+            if not self.config.enable_triple_z:
+                logger.warning("Triple Z-axis not enabled, using standard scan")
+                return self.start_scan(scan_id, config)
+            
+            if use_calibration and self.config.use_calibrated_tilt:
+                logger.info("Using calibrated bed tilt for scan")
+            
+            return self.start_scan(scan_id, config)
+            
+        except Exception as e:
+            logger.error(f"Triple Z scan error: {e}")
+            return False
+    
+    def _capture_and_process_triple_z(self, x: float, y: float,
+                                      z1: float, z2: float, z3: float) -> Optional[Dict]:
+        """
+        Capture and process frame with triple Z-axis positioning
+        
+        Args:
+            x, y: XY position
+            z1, z2, z3: Independent Z-axis positions
+            
+        Returns:
+            Processing result or None
+        """
+        try:
+            # Move with triple Z
+            if not self.printer.move_triple_z(x, y, z1, z2, z3):
+                logger.warning(f"Failed to move to ({x}, {y}) with triple Z")
+                return None
+            
+            # Wait for settling
+            time.sleep(self.config.capture_dwell_time)
+            
+            # Capture frames
+            rgb_frame, depth_frame = self.camera.get_latest_frames()
+            
+            if rgb_frame is None or depth_frame is None:
+                logger.warning(f"No frames at triple Z position")
+                return None
+            
+            # Process
+            self.state = ScanState.PROCESSING
+            result = self.vision.process_frames(rgb_frame, depth_frame)
+            
+            if result and result.get('success'):
+                # Add Z positioning data
+                result['z_positions'] = {'z1': z1, 'z2': z2, 'z3': z3}
+                return result
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Triple Z capture error: {e}")
+            return None
     
     def stop_scan(self) -> bool:
         """Stop current scan"""

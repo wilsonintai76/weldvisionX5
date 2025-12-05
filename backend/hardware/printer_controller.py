@@ -13,6 +13,7 @@ from typing import Tuple, Optional, Dict, List
 from dataclasses import dataclass
 from enum import Enum
 import threading
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class PrinterState(Enum):
 
 @dataclass
 class PrinterConfig:
-    """Printer configuration parameters"""
+    """Printer configuration parameters with triple Z-axis support"""
     port: str = "/dev/ttyUSB0"
     baud_rate: int = 115200
     timeout: float = 10.0
@@ -41,6 +42,15 @@ class PrinterConfig:
     y_max: float = 235.0
     z_min: float = 0.0
     z_max: float = 250.0
+    
+    # Triple Z-axis support for bed tilt calibration
+    enable_triple_z: bool = True
+    z1_min: float = 0.0
+    z1_max: float = 250.0
+    z2_min: float = 0.0
+    z2_max: float = 250.0
+    z3_min: float = 0.0
+    z3_max: float = 250.0
     
     # Scanning parameters
     feedrate_xy: int = 3000      # mm/min for XY moves
@@ -292,6 +302,231 @@ class PrinterController:
         except Exception as e:
             logger.error(f"Relative move error: {e}")
             return False
+    
+    def move_triple_z(self, x: float, y: float, z1: float, z2: float, z3: float) -> bool:
+        """
+        Move to position with independent triple Z-axis (for bed tilt calibration)
+        
+        Useful for calibrating RDK Stereo Camera with tilting bed.
+        Each Z motor can be positioned independently for precise plane fitting.
+        
+        Args:
+            x, y: XY position in mm
+            z1, z2, z3: Independent Z-axis positions in mm
+            
+        Returns:
+            True if move successful
+        """
+        try:
+            if not self.config.enable_triple_z:
+                logger.warning("Triple Z-axis not enabled")
+                return False
+            
+            # Validate bounds for all Z axes
+            if not (self.config.z1_min <= z1 <= self.config.z1_max):
+                logger.error(f"Z1 out of bounds: {z1}")
+                return False
+            if not (self.config.z2_min <= z2 <= self.config.z2_max):
+                logger.error(f"Z2 out of bounds: {z2}")
+                return False
+            if not (self.config.z3_min <= z3 <= self.config.z3_max):
+                logger.error(f"Z3 out of bounds: {z3}")
+                return False
+            if not (self.config.x_min <= x <= self.config.x_max and
+                    self.config.y_min <= y <= self.config.y_max):
+                logger.error(f"XY position out of bounds: ({x}, {y})")
+                return False
+            
+            if not self.is_homed:
+                logger.warning("Printer not homed, homing first...")
+                if not self.home():
+                    return False
+            
+            self.state = PrinterState.MOVING
+            
+            # Move XY first
+            xy_cmd = f"G0 X{x:.2f} Y{y:.2f} F{self.config.feedrate_xy}"
+            if not self._send_command(xy_cmd):
+                logger.error("XY movement failed")
+                self.state = PrinterState.ERROR
+                return False
+            
+            time.sleep(0.5)
+            
+            # Move Z axes independently
+            # Using M400 to wait for moves to complete
+            z1_cmd = f"G0 Z{z1:.2f} F{self.config.feedrate_z}"
+            z2_cmd = f"G0 E{z2:.2f} F{self.config.feedrate_z}"  # Use E axis for second Z
+            z3_cmd = f"G0 D{z3:.2f} F{self.config.feedrate_z}"  # Use D axis for third Z
+            
+            if not self._send_command(z1_cmd):
+                logger.error("Z1 movement failed")
+                self.state = PrinterState.ERROR
+                return False
+            
+            if not self._send_command(z2_cmd):
+                logger.error("Z2 movement failed")
+                self.state = PrinterState.ERROR
+                return False
+            
+            if not self._send_command(z3_cmd):
+                logger.error("Z3 movement failed")
+                self.state = PrinterState.ERROR
+                return False
+            
+            # Wait for all moves to complete
+            self._send_command("M400")
+            
+            # Update position (store as average Z for main tracking)
+            avg_z = (z1 + z2 + z3) / 3.0
+            self.current_pos = (x, y, avg_z)
+            
+            self.state = PrinterState.IDLE
+            logger.info(f"Triple Z move to ({x:.2f}, {y:.2f}) Z1={z1:.2f} Z2={z2:.2f} Z3={z3:.2f}")
+            return True
+            
+        except Exception as e:
+            logger.error(f"Triple Z move error: {e}")
+            self.state = PrinterState.ERROR
+            return False
+    
+    def probe_plane_tilt(self, probe_points: List[Tuple[float, float]]) -> Optional[Dict]:
+        """
+        Probe multiple points to detect bed tilt plane
+        
+        Used for camera calibration with tilting bed.
+        
+        Args:
+            probe_points: List of (x, y) positions to probe
+            
+        Returns:
+            Dict with plane equation coefficients {a, b, c} where z = a*x + b*y + c
+        """
+        try:
+            if not probe_points:
+                logger.error("No probe points provided")
+                return None
+            
+            logger.info(f"Probing {len(probe_points)} points for plane fitting...")
+            
+            probe_data = []
+            
+            # Touch-probe each point
+            for i, (x, y) in enumerate(probe_points):
+                # Move to position
+                if not self.move_to(x, y, self.config.probe_z_height):
+                    logger.error(f"Failed to move to probe point {i}")
+                    continue
+                
+                # Probe down (G31 for Z-probe)
+                response = self._send_command("G31")
+                
+                if response:
+                    # Extract Z position (depends on firmware response format)
+                    try:
+                        # Typical Marlin response: "Z Probe: 10.50"
+                        z_str = response.split(':')[-1].strip()
+                        z = float(z_str)
+                        probe_data.append((x, y, z))
+                        logger.debug(f"Probe point {i}: ({x}, {y}, {z})")
+                    except (ValueError, IndexError):
+                        logger.warning(f"Could not parse probe response: {response}")
+                
+                time.sleep(0.2)
+            
+            if len(probe_data) < 3:
+                logger.error("Need at least 3 probe points for plane fitting")
+                return None
+            
+            # Fit plane to probe data using least squares
+            import numpy as np
+            points = np.array(probe_data)
+            
+            # Build system of equations: z = a*x + b*y + c
+            A = np.column_stack([points[:, 0], points[:, 1], np.ones(len(points))])
+            b = points[:, 2]
+            
+            # Solve using least squares
+            coeffs, residuals, rank, s = np.linalg.lstsq(A, b, rcond=None)
+            
+            plane_eq = {
+                'a': float(coeffs[0]),      # Slope in X
+                'b': float(coeffs[1]),      # Slope in Y
+                'c': float(coeffs[2]),      # Intercept
+                'residual': float(np.mean(residuals)) if len(residuals) > 0 else 0.0,
+                'num_points': len(probe_data)
+            }
+            
+            logger.info(f"Plane fitted: z = {plane_eq['a']:.6f}*x + {plane_eq['b']:.6f}*y + {plane_eq['c']:.2f}")
+            logger.info(f"Fit error (residual): {plane_eq['residual']:.4f}mm")
+            
+            return plane_eq
+            
+        except Exception as e:
+            logger.error(f"Plane probing error: {e}")
+            return None
+    
+    def calibrate_bed_tilt(self, calibration_grid: Tuple[int, int] = (3, 3)) -> Optional[Dict]:
+        """
+        Auto-calibrate bed tilt using triple Z-axis
+        
+        Probes bed at grid points, fits plane, then levels by adjusting Z motors.
+        
+        Args:
+            calibration_grid: (rows, cols) for probe grid
+            
+        Returns:
+            Dict with calibration results
+        """
+        try:
+            logger.info(f"Starting bed tilt calibration with {calibration_grid[0]}x{calibration_grid[1]} grid")
+            
+            rows, cols = calibration_grid
+            
+            # Generate probe grid
+            x_points = np.linspace(self.config.x_min + 20, self.config.x_max - 20, cols)
+            y_points = np.linspace(self.config.y_min + 20, self.config.y_max - 20, rows)
+            
+            probe_points = [(x, y) for x in x_points for y in y_points]
+            
+            # Probe plane
+            plane_eq = self.probe_plane_tilt(probe_points)
+            if not plane_eq:
+                logger.error("Plane fitting failed")
+                return None
+            
+            # Calculate Z offsets for three corner points (triangle for stability)
+            corners = [
+                (self.config.x_min + 20, self.config.y_min + 20),  # Front-left
+                (self.config.x_max - 20, self.config.y_min + 20),  # Front-right
+                (self.config.x_min + 20, self.config.y_max - 20),  # Back-left
+            ]
+            
+            z_offsets = []
+            for x, y in corners:
+                z = plane_eq['a'] * x + plane_eq['b'] * y + plane_eq['c']
+                z_offsets.append(z)
+            
+            logger.info(f"Z offsets at corners: {[f'{z:.2f}' for z in z_offsets]}")
+            
+            # Move to calibration height using triple Z
+            center_x = (self.config.x_min + self.config.x_max) / 2.0
+            center_y = (self.config.y_min + self.config.y_max) / 2.0
+            
+            if not self.move_triple_z(center_x, center_y, z_offsets[0], z_offsets[1], z_offsets[2]):
+                logger.error("Failed to move to calibrated position")
+                return None
+            
+            return {
+                'plane_equation': plane_eq,
+                'z_offsets': z_offsets,
+                'calibration_grid': calibration_grid,
+                'status': 'success'
+            }
+            
+        except Exception as e:
+            logger.error(f"Calibration error: {e}")
+            return None
     
     def _validate_position(self, x: float, y: float, z: float) -> bool:
         """Validate position is within bounds"""

@@ -89,6 +89,17 @@ try:
 except Exception as e:
     logger.warning(f"Scan routes initialization failed: {e}")
 
+# Init Calibration Routes (Triple Z-axis)
+try:
+    from api.calibration_routes import calibration_bp, initialize_calibration
+    app.register_blueprint(calibration_bp)
+    
+    # Initialize calibration
+    initialize_calibration()
+    logger.info("Calibration routes registered and module initialized")
+except Exception as e:
+    logger.warning(f"Calibration routes initialization failed: {e}")
+
 # ROS2 State
 current_frame = None
 current_depth = None
