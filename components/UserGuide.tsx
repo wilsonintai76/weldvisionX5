@@ -180,12 +180,21 @@ const HardwareSection: React.FC = () => (
           </ul>
         </div>
         <div className="bg-slate-700 rounded p-4">
-          <h4 className="font-semibold text-white mb-2">RDK Stereo Camera</h4>
+          <h4 className="font-semibold text-white mb-2">RDK Stereo Camera Module</h4>
           <ul className="text-slate-300 space-y-1 text-sm">
-            <li>• OV5647 RGB sensor (5MP)</li>
-            <li>• Paired stereo depth sensor</li>
-            <li>• CSI/MIPI interface</li>
-            <li>• Connected via dedicated camera connector</li>
+            <li>• <strong>Sensor Chip:</strong> SC230AI (2MP)</li>
+            <li>• <strong>Resolution:</strong> 1920 × 1080 (per camera)</li>
+            <li>• <strong>Sensor Size:</strong> 1/2.8 inch</li>
+            <li>• <strong>Aperture (F):</strong> 2.2</li>
+            <li>• <strong>Focal Length (BFL):</strong> 2.28 mm</li>
+            <li>• <strong>Field of View (FOV):</strong> 178°(D) 150°(H) 80°(V)</li>
+            <li>• <strong>Distortion:</strong> &lt;-30°</li>
+            <li>• <strong>Baseline Length:</strong> 70mm</li>
+            <li>• <strong>I2C Address:</strong> 0x30 / 0x32</li>
+            <li>• <strong>EEPROM:</strong> 0x50</li>
+            <li>• <strong>Synchronization:</strong> Hardware synchronized</li>
+            <li>• <strong>Interface:</strong> CSI/MIPI (dedicated camera connector)</li>
+            <li>• <strong>Frame Rate:</strong> 30 FPS (configurable)</li>
           </ul>
         </div>
       </div>

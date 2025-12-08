@@ -1,0 +1,436 @@
+# Rig Type Selector - Visual Overview
+
+## Sidebar Layout
+
+### Before (Old Structure)
+```
+├─ Dashboard
+├─ Live Scanner
+├─ Students
+├─ Scan History
+├─ Manual Calibration      ← All mixed together
+├─ Stereo Calibration
+├─ Panorama Scanner        ← Incompatible with manual rig
+├─ Safe Motion             ← Incompatible with manual rig
+├─ Settings
+└─ Help & Guide
+```
+
+### After (New Structure with Rig Selection)
+
+#### MANUAL HEIGHT RIG (Selected)
+```
+WeldEval X5
+─────────────────────────────
+├─ Dashboard
+├─ Live Scanner
+├─ Students
+├─ Scan History
+│
+├─────────────────────────────
+│  Rig Configuration
+│  ┌────────────────────────┐
+│  │ ◉ Manual Height        │ ← Selected (blue)
+│  │ ○ 3-Axis + Panorama    │
+│  └────────────────────────┘
+│
+├─────────────────────────────
+│  Features
+│  ├─ Manual Calibration    ← Available for this rig
+│  └─ Stereo Calibration
+│
+├─ Settings
+└─ Help & Guide
+```
+
+**Status:** 
+- ✅ Panorama Scanner hidden
+- ✅ Safe Motion hidden  
+- ✅ Clean, focused UI
+
+#### 3-AXIS PANORAMA RIG (Selected)
+```
+WeldEval X5
+─────────────────────────────
+├─ Dashboard
+├─ Live Scanner
+├─ Students
+├─ Scan History
+│
+├─────────────────────────────
+│  Rig Configuration
+│  ┌────────────────────────┐
+│  │ ○ Manual Height        │
+│  │ ◉ 3-Axis + Panorama    │ ← Selected (blue)
+│  └────────────────────────┘
+│
+├─────────────────────────────
+│  Features
+│  ├─ Panorama Scanner      ← Available for this rig
+│  ├─ Safe Motion Control   ← Motor control
+│  └─ Stereo Calibration
+│
+├─ Settings
+└─ Help & Guide
+```
+
+**Status:**
+- ✅ Manual Calibration hidden
+- ✅ 3D scanning ready
+- ✅ Motion control available
+
+---
+
+## Interactive Switching
+
+### Scenario 1: Switch from Manual Height to 3-Axis Panorama
+
+**Current State:**
+```
+Viewing: Manual Calibration
+Rig: Manual Height
+```
+
+**User Action:**
+```
+Click "3-Axis + Panorama" button
+```
+
+**System Response:**
+```
+1. Detect: Manual Calibration is not compatible with 3-Axis rig
+2. Redirect: View → Dashboard (automatic)
+3. Update: Sidebar features → Show Panorama Scanner, Safe Motion
+4. Hide: Manual Calibration option
+5. Result: User sees Dashboard with new sidebar options
+```
+
+**Visual Result:**
+```
+Before:                          After:
+┌─────────────────┐             ┌─────────────────┐
+│ MANUAL_BED_     │             │   DASHBOARD     │
+│ CALIBRATION     │             │                 │
+│ (Active View)   │  ──→        │ (New View)      │
+│                 │             │                 │
+│ Manual Height   │             │ 3-Axis + Pano   │
+│ ◉ Selected      │             │ ◉ Selected      │
+└─────────────────┘             └─────────────────┘
+
+Sidebar:                        Sidebar:
+- Manual Calib.                 - Panorama Scan.
+- Stereo Calib.                 - Safe Motion
+                                - Stereo Calib.
+```
+
+### Scenario 2: Switch While Viewing Stereo Calibration
+
+**Current State:**
+```
+Viewing: Stereo Calibration
+Rig: Manual Height
+```
+
+**User Action:**
+```
+Click "3-Axis + Panorama" button
+```
+
+**System Response:**
+```
+1. Check: Stereo Calibration is compatible with both rigs ✓
+2. Keep: View remains on Stereo Calibration (no redirect)
+3. Update: Sidebar features only
+4. Result: Seamless transition, user stays on same screen
+```
+
+**Visual Result:**
+```
+Before:                          After:
+┌──────────────────────┐        ┌──────────────────────┐
+│ STEREO CALIBRATION   │        │ STEREO CALIBRATION   │
+│ (Active View)        │        │ (Still Active)       │
+│                      │   ──→  │                      │
+│ Manual Height        │        │ 3-Axis + Panorama    │
+│ ◉ Selected           │        │ ◉ Selected           │
+└──────────────────────┘        └──────────────────────┘
+
+No navigation interrupt!
+User continues with calibration
+```
+
+---
+
+## Visual Comparison Table
+
+| Aspect | Manual Height Rig | 3-Axis Panorama Rig |
+|--------|-------------------|---------------------|
+| **Rig Selector** | ◉ Manual Height | ◉ 3-Axis + Panorama |
+| **Manual Calibration** | 📍 Visible | ✖️ Hidden |
+| **Stereo Calibration** | 📍 Visible | 📍 Visible |
+| **Panorama Scanner** | ✖️ Hidden | 📍 Visible |
+| **Safe Motion** | ✖️ Hidden | 📍 Visible |
+| **Menu Items** | 2 features | 3 features |
+| **View on Switch** | Redirects to Dashboard | Stays on current (if compatible) |
+
+---
+
+## Button States
+
+### Rig Selector Buttons
+
+#### Manual Height Button (Selected)
+```
+┌──────────────────────────┐
+│ ◉ Manual Height          │  ← Blue highlight
+│ bg: industrial-blue      │  ← text-white
+│ shadow: blue glow        │  ← shadow-lg
+└──────────────────────────┘
+```
+
+#### Manual Height Button (Not Selected)
+```
+┌──────────────────────────┐
+│ ○ Manual Height          │  ← Gray button
+│ bg: slate-800            │  ← text-slate-300
+│ hover: lighter gray      │  ← hover:bg-slate-700
+└──────────────────────────┘
+```
+
+---
+
+## Features Section Label
+
+### Shows for Manual Height
+```
+┌────────────────────────────────┐
+│ FEATURES                       │  ← appears when Manual Height
+│ ├─ Manual Calibration          │     selected
+│ └─ Stereo Calibration          │
+└────────────────────────────────┘
+```
+
+### Shows for 3-Axis Panorama
+```
+┌────────────────────────────────┐
+│ FEATURES                       │  ← appears when 3-Axis
+│ ├─ Panorama Scanner            │     selected
+│ ├─ Safe Motion Control         │
+│ └─ Stereo Calibration          │
+└────────────────────────────────┘
+```
+
+### How It Works
+- "Features" label dynamically appears/disappears
+- Based on: `{rigType === RigType.MANUAL_HEIGHT && ...}`
+- Clean, minimal UI
+- No disabled buttons (hidden items use conditional rendering)
+
+---
+
+## Edge Cases Handled
+
+### 1. Panorama View → Switch to Manual Height
+```
+Current: PANORAMA_SCANNER view
+Action: Select Manual Height
+Result: → Redirect to DASHBOARD
+Reason: Panorama not available in Manual rig
+```
+
+### 2. Safe Motion View → Switch to Manual Height  
+```
+Current: SAFE_MOTION view
+Action: Select Manual Height
+Result: → Redirect to DASHBOARD
+Reason: Motor control not available in Manual rig
+```
+
+### 3. Manual Calibration View → Switch to 3-Axis
+```
+Current: MANUAL_BED_CALIBRATION view
+Action: Select 3-Axis + Panorama
+Result: → Redirect to DASHBOARD
+Reason: Single-position calibration not for multi-axis
+```
+
+### 4. Stereo Calibration View → Switch Between Any Rigs
+```
+Current: STEREO_CALIBRATION view
+Action: Select ANY rig (switch A→B or B→A)
+Result: → STAY on STEREO_CALIBRATION
+Reason: Stereo calibration works on both rigs
+```
+
+### 5. Dashboard View → Switch Between Any Rigs
+```
+Current: DASHBOARD view
+Action: Select ANY rig (switch A→B or B→A)
+Result: → STAY on DASHBOARD
+Reason: Dashboard always works everywhere
+```
+
+---
+
+## Styling Details
+
+### Rig Configuration Section (Sidebar)
+```css
+{
+  marginTop: 1rem,          /* my-4 */
+  paddingTop: 1rem,         /* pt-4 */
+  paddingBottom: undefined, /* no pb */
+  borderTop: '1px solid',   /* border-t */
+  borderColor: '#1e293b',   /* border-slate-800 */
+}
+```
+
+### Section Label
+```css
+fontSize: '0.75rem',        /* text-xs */
+fontWeight: 600,            /* font-semibold */
+color: '#64748b',           /* text-slate-400 */
+textTransform: 'uppercase', /* uppercase */
+letterSpacing: 0.05em,      /* tracking-wider */
+marginBottom: 0.75rem,      /* mb-3 */
+```
+
+### Selected Button
+```css
+backgroundColor: '#1e40af',     /* bg-industrial-blue */
+color: '#ffffff',               /* text-white */
+boxShadow: '0 20px 25px -5px rgba(30, 64, 175, 0.2)', /* shadow-lg shadow-blue/20 */
+borderRadius: '0.5rem',         /* rounded-lg */
+padding: '0.5rem 0.75rem',      /* px-3 py-2 */
+```
+
+### Unselected Button
+```css
+backgroundColor: '#1e293b',     /* bg-slate-800 */
+color: '#cbd5e1',               /* text-slate-300 */
+borderRadius: '0.5rem',         /* rounded-lg */
+padding: '0.5rem 0.75rem',      /* px-3 py-2 */
+transition: 'all 150ms',        /* transition-colors */
+```
+
+---
+
+## Code Structure
+
+### Sidebar JSX Structure
+```tsx
+<nav className="flex-1">
+  {/* Main navigation items */}
+  <SidebarItem ... />
+  <SidebarItem ... />
+  
+  {/* RIG TYPE SELECTOR */}
+  <div className="my-4 px-2 pt-4 border-t border-slate-800">
+    <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">
+      Rig Configuration
+    </p>
+    <div className="space-y-2">
+      <button onClick={() => setRigType(RigType.MANUAL_HEIGHT)} 
+              className={rigType === RigType.MANUAL_HEIGHT ? 'selected' : 'unselected'}>
+        Manual Height
+      </button>
+      <button onClick={() => setRigType(RigType.THREE_AXIS_PANORAMA)}
+              className={rigType === RigType.THREE_AXIS_PANORAMA ? 'selected' : 'unselected'}>
+        3-Axis + Panorama
+      </button>
+    </div>
+  </div>
+  
+  {/* CONDITIONAL FEATURES - MANUAL HEIGHT */}
+  {rigType === RigType.MANUAL_HEIGHT && (
+    <>
+      <p className="...">Features</p>
+      <SidebarItem label="Manual Calibration" ... />
+      <SidebarItem label="Stereo Calibration" ... />
+    </>
+  )}
+  
+  {/* CONDITIONAL FEATURES - 3-AXIS PANORAMA */}
+  {rigType === RigType.THREE_AXIS_PANORAMA && (
+    <>
+      <p className="...">Features</p>
+      <SidebarItem label="Panorama Scanner" ... />
+      <SidebarItem label="Safe Motion Control" ... />
+      <SidebarItem label="Stereo Calibration" ... />
+    </>
+  )}
+</nav>
+```
+
+---
+
+## User Flow Diagram
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    WeldVision X5 Startup                     │
+└────────────────┬────────────────────────────────────────────┘
+                 │
+                 ├──→ rigType = MANUAL_HEIGHT (default)
+                 │
+                 └──→ Display Sidebar:
+                     ├─ Dashboard
+                     ├─ Live Scanner
+                     ├─ Students
+                     ├─ History
+                     ├─ RIG SELECTOR
+                     │  ├─ ◉ Manual Height
+                     │  └─ ○ 3-Axis + Panorama
+                     └─ Features:
+                        ├─ Manual Calibration
+                        └─ Stereo Calibration
+
+              ↓ USER CLICKS "3-Axis + Panorama"
+
+┌─────────────────────────────────────────────────────────────┐
+│              Rig Type Update triggered                        │
+└────────────────┬────────────────────────────────────────────┘
+                 │
+                 ├──→ setRigType(THREE_AXIS_PANORAMA)
+                 │
+                 ├──→ Check current view compatibility
+                 │    (if MANUAL_CALIBRATION → redirect DASHBOARD)
+                 │
+                 └──→ Display Sidebar:
+                     ├─ Dashboard
+                     ├─ Live Scanner
+                     ├─ Students
+                     ├─ History
+                     ├─ RIG SELECTOR
+                     │  ├─ ○ Manual Height
+                     │  └─ ◉ 3-Axis + Panorama
+                     └─ Features:
+                        ├─ Panorama Scanner
+                        ├─ Safe Motion Control
+                        └─ Stereo Calibration
+```
+
+---
+
+## Accessibility Features
+
+### Keyboard Navigation
+- Tab through rig selector buttons ✅
+- Enter/Space to activate buttons ✅
+- Focus visible (browser default) ✅
+
+### Screen Readers
+- Buttons have descriptive text ✅
+- Labels explain "Rig Configuration" ✅
+- "Features" section labeled ✅
+
+### Color Contrast
+- Blue (industrial-blue) on white: High contrast ✅
+- Gray text on slate-800: Sufficient contrast ✅
+- Selected state: Clear visual distinction ✅
+
+---
+
+*Generated: December 8, 2025*  
+*For: WeldVision X5 Team*  
+*Status: ✅ Ready for Deployment*

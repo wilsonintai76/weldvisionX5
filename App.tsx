@@ -44,7 +44,7 @@ import {
   Line 
 } from 'recharts';
 
-import { Student, ScanResult, ViewState, WeldingMetrics, RubricConfig } from './types';
+import { Student, ScanResult, ViewState, WeldingMetrics, RubricConfig, RigType } from './types';
 import { RUBRIC_PRESETS, CAMERA_FEED_PLACEHOLDER } from './constants';
 import { fetchStudents, fetchHistory, triggerScan, addStudent, updateStudent, deleteStudent, triggerCalibration, saveCalibration, getRubric, saveRubric } from './services/apiService';
 import { MetricCard } from './components/MetricCard';
@@ -52,6 +52,7 @@ import UserGuide from './components/UserGuide';
 import { LEDControl } from './components/LEDControl';
 import StereoCameraCalibration from './components/StereoCameraCalibration';
 import BedCalibration from './components/BedCalibration';
+import ManualBedCalibration from './components/ManualBedCalibration';
 import PanoramaScannerView from './components/PanoramaScannerView';
 import SafeMotionControlView from './components/SafeMotionControlView';
 
@@ -1031,7 +1032,7 @@ const ScannerView = ({
     setIsScanning(true);
     setResult(null);
     try {
-      const res = await triggerScan(Number(selectedStudentId));
+      const res = await triggerScan(Number(selectedStudentId), rubric);
       setResult(res);
       onScanComplete(res);
     } catch (e) {
@@ -1491,6 +1492,7 @@ const StudentsView = ({
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>(ViewState.DASHBOARD);
+  const [rigType, setRigType] = useState<RigType>(RigType.MANUAL_HEIGHT);
   const [students, setStudents] = useState<Student[]>([]);
   const [scans, setScans] = useState<ScanResult[]>([]);
   const [rubric, setRubric] = useState<RubricConfig>(RUBRIC_PRESETS['Standard']);
@@ -1518,6 +1520,21 @@ const App: React.FC = () => {
     };
     init();
   }, []);
+
+  // Reset view when switching rig types if current view is not applicable
+  useEffect(() => {
+    if (rigType === RigType.MANUAL_HEIGHT) {
+      // Manual Height rig: disable panorama and safe motion features
+      if ([ViewState.PANORAMA_SCANNER, ViewState.SAFE_MOTION].includes(view)) {
+        setView(ViewState.DASHBOARD);
+      }
+    } else if (rigType === RigType.THREE_AXIS_PANORAMA) {
+      // 3-Axis Panorama rig: disable manual bed calibration
+      if ([ViewState.MANUAL_BED_CALIBRATION].includes(view)) {
+        setView(ViewState.DASHBOARD);
+      }
+    }
+  }, [rigType, view]);
 
   const handleScanComplete = useCallback((newScan: ScanResult) => {
     setScans(prev => [newScan, ...prev]);
@@ -1610,43 +1627,84 @@ const App: React.FC = () => {
             active={view === ViewState.HISTORY} 
             onClick={() => setView(ViewState.HISTORY)} 
           />
-           <SidebarItem 
-            icon={Grid3x3} 
-            label="Calibration" 
-            active={view === ViewState.CALIBRATION} 
-            onClick={() => setView(ViewState.CALIBRATION)} 
-          />
-          <SidebarItem 
-            icon={Ruler} 
-            label="Bed Tilt" 
-            active={view === ViewState.BED_TILT_CALIBRATION} 
-            onClick={() => setView(ViewState.BED_TILT_CALIBRATION)} 
-          />
-          <SidebarItem 
-            icon={Camera} 
-            label="Stereo Calibration" 
-            active={view === ViewState.STEREO_CALIBRATION} 
-            onClick={() => setView(ViewState.STEREO_CALIBRATION)} 
-          />
-          <SidebarItem 
-            icon={Sparkles} 
-            label="Panorama Scanner" 
-            active={view === ViewState.PANORAMA_SCANNER} 
-            onClick={() => setView(ViewState.PANORAMA_SCANNER)} 
-          />
-          <SidebarItem 
-            icon={Cpu} 
-            label="Safe Motion" 
-            active={view === ViewState.SAFE_MOTION} 
-            onClick={() => setView(ViewState.SAFE_MOTION)} 
-          />
-          <SidebarItem 
-            icon={Settings} 
-            label="Settings" 
-            active={view === ViewState.SETTINGS} 
-            onClick={() => setView(ViewState.SETTINGS)} 
-          />
-          <button
+
+          {/* Rig Type Selector */}
+          <div className="my-4 px-2 pt-4 border-t border-slate-800">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Rig Configuration</p>
+            <div className="space-y-2">
+              <button
+                onClick={() => setRigType(RigType.MANUAL_HEIGHT)}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  rigType === RigType.MANUAL_HEIGHT
+                    ? 'bg-industrial-blue text-white shadow-lg shadow-industrial-blue/20'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                Manual Height
+              </button>
+              <button
+                onClick={() => setRigType(RigType.THREE_AXIS_PANORAMA)}
+                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
+                  rigType === RigType.THREE_AXIS_PANORAMA
+                    ? 'bg-industrial-blue text-white shadow-lg shadow-industrial-blue/20'
+                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                }`}
+              >
+                3-Axis + Panorama
+              </button>
+            </div>
+          </div>
+
+          {/* Manual Height Rig - Features */}
+          {rigType === RigType.MANUAL_HEIGHT && (
+            <>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mt-4 mb-3">Features</p>
+              <SidebarItem 
+                icon={Settings} 
+                label="Manual Calibration" 
+                active={view === ViewState.MANUAL_BED_CALIBRATION} 
+                onClick={() => setView(ViewState.MANUAL_BED_CALIBRATION)} 
+              />
+            </>
+          )}
+
+          {/* 3-Axis Panorama Rig - Features */}
+          {rigType === RigType.THREE_AXIS_PANORAMA && (
+            <>
+              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mt-4 mb-3">Features</p>
+              <SidebarItem 
+                icon={Sparkles} 
+                label="Panorama Scanner" 
+                active={view === ViewState.PANORAMA_SCANNER} 
+                onClick={() => setView(ViewState.PANORAMA_SCANNER)} 
+              />
+              <SidebarItem 
+                icon={Cpu} 
+                label="Safe Motion Control" 
+                active={view === ViewState.SAFE_MOTION} 
+                onClick={() => setView(ViewState.SAFE_MOTION)} 
+              />
+              <SidebarItem 
+                icon={Camera} 
+                label="Stereo Calibration" 
+                active={view === ViewState.STEREO_CALIBRATION} 
+                onClick={() => setView(ViewState.STEREO_CALIBRATION)} 
+              />
+            </>
+          )}
+
+          {/* Common Settings */}
+          <div className="mt-4 pt-4 border-t border-slate-800">
+            <SidebarItem 
+              icon={Settings} 
+              label="Settings" 
+              active={view === ViewState.SETTINGS} 
+              onClick={() => setView(ViewState.SETTINGS)} 
+            />
+          </div>
+        </nav>
+
+        <button
             onClick={() => setGuideOpen(true)}
             className="flex items-center w-full p-3 mb-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium"
             title="Open help and user guide"
@@ -1655,7 +1713,6 @@ const App: React.FC = () => {
             <HelpCircle className="w-5 h-5 mr-3" />
             <span className="font-medium">Help & Guide</span>
           </button>
-        </nav>
 
         <div className="mt-auto p-4 bg-slate-800 rounded-xl border border-slate-700">
            <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
@@ -1684,8 +1741,7 @@ const App: React.FC = () => {
               {view === ViewState.SCANNER && 'Evaluation Station'}
               {view === ViewState.STUDENTS && 'Class Management'}
               {view === ViewState.HISTORY && 'Scan Archives'}
-              {view === ViewState.CALIBRATION && 'System Calibration'}
-              {view === ViewState.BED_TILT_CALIBRATION && 'Bed Tilt Calibration'}
+              {view === ViewState.MANUAL_BED_CALIBRATION && 'Manual Calibration'}
               {view === ViewState.STEREO_CALIBRATION && 'Stereo Camera Calibration'}
               {view === ViewState.PANORAMA_SCANNER && 'Panorama Scanner'}
               {view === ViewState.SAFE_MOTION && 'Safe Motion Control'}
@@ -1734,11 +1790,8 @@ const App: React.FC = () => {
         {view === ViewState.HISTORY && (
           <HistoryView scans={scans} students={students} />
         )}
-        {view === ViewState.CALIBRATION && (
-          <CalibrationView />
-        )}
-        {view === ViewState.BED_TILT_CALIBRATION && (
-          <BedCalibration />
+        {view === ViewState.MANUAL_BED_CALIBRATION && (
+          <ManualBedCalibration />
         )}
         {view === ViewState.STEREO_CALIBRATION && (
           <StereoCameraCalibration />

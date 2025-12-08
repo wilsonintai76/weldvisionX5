@@ -350,6 +350,9 @@ def get_calibration_report():
         report = calibration.get_calibration_report()
         
         return jsonify(report), 200
+    except Exception as e:
+        logger.error(f"Failed to get calibration report: {str(e)}")
+        return {'error': str(e)}, 500
 
 
 # ==================== AUTOMATIC STEREO CALIBRATION ENDPOINTS ====================
