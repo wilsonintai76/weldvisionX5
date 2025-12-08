@@ -165,10 +165,10 @@ Tests Completed:    TBD
 📷 Live Scanner
 👥 Students
 📜 Scan History
-├─ Manual Calibration (if Manual Height rig)
-├─ Panorama Scanner (if 3-Axis rig)
-├─ Safe Motion Control (if 3-Axis rig)
-├─ Stereo Calibration (if 3-Axis rig)
+├─ Manual Calibration (if Basic Rig)
+├─ Panorama Scanner (if Advanced Rig)
+├─ Safe Motion Control (if Advanced Rig)
+├─ Stereo Calibration (if Advanced Rig)
 │
 🧠 Inference Monitor  ← NEW
 ✨ Model Training      ← NEW

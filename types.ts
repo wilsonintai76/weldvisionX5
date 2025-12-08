@@ -44,8 +44,8 @@ export enum ViewState {
 }
 
 export enum RigType {
-  MANUAL_HEIGHT = 'MANUAL_HEIGHT',
-  THREE_AXIS_PANORAMA = 'THREE_AXIS_PANORAMA',
+  BASIC_RIG = 'BASIC_RIG',
+  ADVANCED_RIG = 'ADVANCED_RIG',
 }
 
 export interface RubricConfig {

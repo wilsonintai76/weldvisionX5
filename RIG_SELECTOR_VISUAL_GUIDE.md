@@ -18,7 +18,7 @@
 
 ### After (New Structure with Rig Selection)
 
-#### MANUAL HEIGHT RIG (Selected)
+#### BASIC RIG (Manual) - Selected
 ```
 WeldEval X5
 ─────────────────────────────
@@ -30,8 +30,8 @@ WeldEval X5
 ├─────────────────────────────
 │  Rig Configuration
 │  ┌────────────────────────┐
-│  │ ◉ Manual Height        │ ← Selected (blue)
-│  │ ○ 3-Axis + Panorama    │
+│  │ ◉ Basic Rig (Manual)   │ ← Selected (blue)
+│  │ ○ Advanced Rig (3-Axis)│
 │  └────────────────────────┘
 │
 ├─────────────────────────────
@@ -48,7 +48,7 @@ WeldEval X5
 - ✅ Safe Motion hidden  
 - ✅ Clean, focused UI
 
-#### 3-AXIS PANORAMA RIG (Selected)
+#### ADVANCED RIG (3-Axis) - Selected
 ```
 WeldEval X5
 ─────────────────────────────
@@ -60,8 +60,8 @@ WeldEval X5
 ├─────────────────────────────
 │  Rig Configuration
 │  ┌────────────────────────┐
-│  │ ○ Manual Height        │
-│  │ ◉ 3-Axis + Panorama    │ ← Selected (blue)
+│  │ ○ Basic Rig (Manual)   │
+│  │ ◉ Advanced Rig (3-Axis)│ ← Selected (blue)
 │  └────────────────────────┘
 │
 ├─────────────────────────────
@@ -83,22 +83,22 @@ WeldEval X5
 
 ## Interactive Switching
 
-### Scenario 1: Switch from Manual Height to 3-Axis Panorama
+### Scenario 1: Switch from Basic Rig to Advanced Rig
 
 **Current State:**
 ```
 Viewing: Manual Calibration
-Rig: Manual Height
+Rig: Basic Rig (Manual)
 ```
 
 **User Action:**
 ```
-Click "3-Axis + Panorama" button
+Click "Advanced Rig (3-Axis)" button
 ```
 
 **System Response:**
 ```
-1. Detect: Manual Calibration is not compatible with 3-Axis rig
+1. Detect: Manual Calibration is not compatible with Advanced Rig
 2. Redirect: View → Dashboard (automatic)
 3. Update: Sidebar features → Show Panorama Scanner, Safe Motion
 4. Hide: Manual Calibration option
@@ -113,7 +113,7 @@ Before:                          After:
 │ CALIBRATION     │             │                 │
 │ (Active View)   │  ──→        │ (New View)      │
 │                 │             │                 │
-│ Manual Height   │             │ 3-Axis + Pano   │
+│ Basic Rig       │             │ Advanced Rig    │
 │ ◉ Selected      │             │ ◉ Selected      │
 └─────────────────┘             └─────────────────┘
 
@@ -128,12 +128,12 @@ Sidebar:                        Sidebar:
 **Current State:**
 ```
 Viewing: Stereo Calibration
-Rig: Manual Height
+Rig: Basic Rig (Manual)
 ```
 
 **User Action:**
 ```
-Click "3-Axis + Panorama" button
+Click "Advanced Rig (3-Axis)" button
 ```
 
 **System Response:**
@@ -151,7 +151,7 @@ Before:                          After:
 │ STEREO CALIBRATION   │        │ STEREO CALIBRATION   │
 │ (Active View)        │        │ (Still Active)       │
 │                      │   ──→  │                      │
-│ Manual Height        │        │ 3-Axis + Panorama    │
+│ Basic Rig (Manual)   │        │ Advanced Rig (3-Axis)│
 │ ◉ Selected           │        │ ◉ Selected           │
 └──────────────────────┘        └──────────────────────┘
 
@@ -163,9 +163,9 @@ User continues with calibration
 
 ## Visual Comparison Table
 
-| Aspect | Manual Height Rig | 3-Axis Panorama Rig |
-|--------|-------------------|---------------------|
-| **Rig Selector** | ◉ Manual Height | ◉ 3-Axis + Panorama |
+| Aspect | Basic Rig | Advanced Rig |
+|--------|-----------|--------------|
+| **Rig Selector** | ◉ Basic Rig (Manual) | ◉ Advanced Rig (3-Axis) |
 | **Manual Calibration** | 📍 Visible | ✖️ Hidden |
 | **Stereo Calibration** | 📍 Visible | 📍 Visible |
 | **Panorama Scanner** | ✖️ Hidden | 📍 Visible |
@@ -222,7 +222,7 @@ User continues with calibration
 
 ### How It Works
 - "Features" label dynamically appears/disappears
-- Based on: `{rigType === RigType.MANUAL_HEIGHT && ...}`
+- Based on: `{rigType === RigType.BASIC_RIG && ...}`
 - Clean, minimal UI
 - No disabled buttons (hidden items use conditional rendering)
 
@@ -230,26 +230,26 @@ User continues with calibration
 
 ## Edge Cases Handled
 
-### 1. Panorama View → Switch to Manual Height
+### 1. Panorama View → Switch to Basic Rig
 ```
 Current: PANORAMA_SCANNER view
-Action: Select Manual Height
+Action: Select Basic Rig
 Result: → Redirect to DASHBOARD
-Reason: Panorama not available in Manual rig
+Reason: Panorama not available in Basic rig
 ```
 
-### 2. Safe Motion View → Switch to Manual Height  
+### 2. Safe Motion View → Switch to Basic Rig  
 ```
 Current: SAFE_MOTION view
-Action: Select Manual Height
+Action: Select Basic Rig
 Result: → Redirect to DASHBOARD
-Reason: Motor control not available in Manual rig
+Reason: Motor control not available in Basic rig
 ```
 
-### 3. Manual Calibration View → Switch to 3-Axis
+### 3. Manual Calibration View → Switch to Advanced Rig
 ```
 Current: MANUAL_BED_CALIBRATION view
-Action: Select 3-Axis + Panorama
+Action: Select Advanced Rig (3-Axis)
 Result: → Redirect to DASHBOARD
 Reason: Single-position calibration not for multi-axis
 ```
@@ -330,28 +330,28 @@ transition: 'all 150ms',        /* transition-colors */
       Rig Configuration
     </p>
     <div className="space-y-2">
-      <button onClick={() => setRigType(RigType.MANUAL_HEIGHT)} 
-              className={rigType === RigType.MANUAL_HEIGHT ? 'selected' : 'unselected'}>
-        Manual Height
+      <button onClick={() => setRigType(RigType.BASIC_RIG)} 
+              className={rigType === RigType.BASIC_RIG ? 'selected' : 'unselected'}>
+        Basic Rig (Manual)
       </button>
-      <button onClick={() => setRigType(RigType.THREE_AXIS_PANORAMA)}
-              className={rigType === RigType.THREE_AXIS_PANORAMA ? 'selected' : 'unselected'}>
-        3-Axis + Panorama
+      <button onClick={() => setRigType(RigType.ADVANCED_RIG)}
+              className={rigType === RigType.ADVANCED_RIG ? 'selected' : 'unselected'}>
+        Advanced Rig (3-Axis)
       </button>
     </div>
   </div>
   
-  {/* CONDITIONAL FEATURES - MANUAL HEIGHT */}
-  {rigType === RigType.MANUAL_HEIGHT && (
+  {/* CONDITIONAL FEATURES - BASIC RIG */}
+  {rigType === RigType.BASIC_RIG && (
     <>
       <p className="...">Features</p>
       <SidebarItem label="Manual Calibration" ... />
       <SidebarItem label="Stereo Calibration" ... />
     </>
   )}
-  
-  {/* CONDITIONAL FEATURES - 3-AXIS PANORAMA */}
-  {rigType === RigType.THREE_AXIS_PANORAMA && (
+
+  {/* CONDITIONAL FEATURES - ADVANCED RIG */}
+  {rigType === RigType.ADVANCED_RIG && (
     <>
       <p className="...">Features</p>
       <SidebarItem label="Panorama Scanner" ... />
@@ -379,19 +379,19 @@ transition: 'all 150ms',        /* transition-colors */
                      ├─ Students
                      ├─ History
                      ├─ RIG SELECTOR
-                     │  ├─ ◉ Manual Height
-                     │  └─ ○ 3-Axis + Panorama
+                     │  ├─ ◉ Basic Rig (Manual)
+                     │  └─ ○ Advanced Rig (3-Axis)
                      └─ Features:
                         ├─ Manual Calibration
                         └─ Stereo Calibration
 
-              ↓ USER CLICKS "3-Axis + Panorama"
+              ↓ USER CLICKS "Advanced Rig (3-Axis)"
 
 ┌─────────────────────────────────────────────────────────────┐
 │              Rig Type Update triggered                        │
 └────────────────┬────────────────────────────────────────────┘
                  │
-                 ├──→ setRigType(THREE_AXIS_PANORAMA)
+                 ├──→ setRigType(ADVANCED_RIG)
                  │
                  ├──→ Check current view compatibility
                  │    (if MANUAL_CALIBRATION → redirect DASHBOARD)
@@ -402,8 +402,8 @@ transition: 'all 150ms',        /* transition-colors */
                      ├─ Students
                      ├─ History
                      ├─ RIG SELECTOR
-                     │  ├─ ○ Manual Height
-                     │  └─ ◉ 3-Axis + Panorama
+                     │  ├─ ○ Basic Rig (Manual)
+                     │  └─ ◉ Advanced Rig (3-Axis)
                      └─ Features:
                         ├─ Panorama Scanner
                         ├─ Safe Motion Control

@@ -12,7 +12,7 @@
 - ✅ Calibration views (3 types)
 - ✅ Settings panel
 - ✅ LED control
-- ✅ Multiple rig types (Manual Height + 3-Axis Panorama)
+- ✅ Multiple rig types (Basic Rig + Advanced Rig)
 
 **Backend (Python/Flask):**
 - ✅ Core Flask server (app.py)

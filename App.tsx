@@ -1497,7 +1497,7 @@ const StudentsView = ({
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>(ViewState.DASHBOARD);
-  const [rigType, setRigType] = useState<RigType>(RigType.MANUAL_HEIGHT);
+  const [rigType, setRigType] = useState<RigType>(RigType.BASIC_RIG);
   const [students, setStudents] = useState<Student[]>([]);
   const [scans, setScans] = useState<ScanResult[]>([]);
   const [rubric, setRubric] = useState<RubricConfig>(RUBRIC_PRESETS['Standard']);
@@ -1528,13 +1528,13 @@ const App: React.FC = () => {
 
   // Reset view when switching rig types if current view is not applicable
   useEffect(() => {
-    if (rigType === RigType.MANUAL_HEIGHT) {
-      // Manual Height rig: disable panorama and safe motion features
+    if (rigType === RigType.BASIC_RIG) {
+      // Basic Rig: disable panorama and safe motion features
       if ([ViewState.PANORAMA_SCANNER, ViewState.SAFE_MOTION].includes(view)) {
         setView(ViewState.DASHBOARD);
       }
-    } else if (rigType === RigType.THREE_AXIS_PANORAMA) {
-      // 3-Axis Panorama rig: disable manual bed calibration
+    } else if (rigType === RigType.ADVANCED_RIG) {
+      // Advanced Rig: disable manual bed calibration
       if ([ViewState.MANUAL_BED_CALIBRATION].includes(view)) {
         setView(ViewState.DASHBOARD);
       }

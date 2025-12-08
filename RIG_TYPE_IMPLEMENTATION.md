@@ -12,14 +12,14 @@ Successfully implemented a **Rig Type Configuration System** that allows users t
 Added new enum for rig types:
 ```typescript
 export enum RigType {
-  MANUAL_HEIGHT = 'MANUAL_HEIGHT',
-  THREE_AXIS_PANORAMA = 'THREE_AXIS_PANORAMA',
+  BASIC_RIG = 'BASIC_RIG',
+  ADVANCED_RIG = 'ADVANCED_RIG',
 }
 ```
 
 ### 2. **State Management** (`App.tsx`)
-- Added `rigType` state: `useState<RigType>(RigType.MANUAL_HEIGHT)`
-- Default selection: **Manual Height** rig
+- Added `rigType` state: `useState<RigType>(RigType.BASIC_RIG)`
+- Default selection: **Basic Rig** (Manual)
 - User can change anytime via sidebar selector
 
 ### 3. **Sidebar Navigation Updates** (`App.tsx`)
@@ -28,13 +28,13 @@ Restructured sidebar with:
 - **Dynamic Feature Menu**: Features change based on selected rig
 - **View Reset Logic**: Automatically redirects incompatible views
 
-#### Manual Height Rig Features:
+#### Basic Rig (Manual) Features:
 - ✅ Manual Calibration
 - ✅ Stereo Calibration
 - ❌ Panorama Scanner (disabled)
 - ❌ Safe Motion Control (disabled)
 
-#### 3-Axis Panorama Rig Features:
+#### Advanced Rig (3-Axis) Features:
 - ✅ Panorama Scanner
 - ✅ Safe Motion Control
 - ✅ Stereo Calibration
@@ -43,13 +43,13 @@ Restructured sidebar with:
 ### 4. **Automatic View Management** (`App.tsx`)
 ```typescript
 useEffect(() => {
-  if (rigType === RigType.MANUAL_HEIGHT) {
-    // Disable panorama and safe motion
+  if (rigType === RigType.BASIC_RIG) {
+    // Basic Rig: disable panorama and safe motion
     if ([ViewState.PANORAMA_SCANNER, ViewState.SAFE_MOTION].includes(view)) {
       setView(ViewState.DASHBOARD);
     }
-  } else if (rigType === RigType.THREE_AXIS_PANORAMA) {
-    // Disable manual bed calibration
+  } else if (rigType === RigType.ADVANCED_RIG) {
+    // Advanced Rig: disable manual bed calibration
     if ([ViewState.MANUAL_BED_CALIBRATION].includes(view)) {
       setView(ViewState.DASHBOARD);
     }
@@ -68,9 +68,9 @@ useEffect(() => {
 
 ### How It Works
 
-1. **Open Application** → Default: Manual Height rig selected
+1. **Open Application** → Default: Basic Rig (Manual) selected
 2. **Sidebar** → Find "Rig Configuration" section below Scan History
-3. **Select Rig** → Click either "Manual Height" or "3-Axis + Panorama"
+3. **Select Rig** → Click either "Basic Rig (Manual)" or "Advanced Rig (3-Axis)"
 4. **Features Update** → Sidebar shows only applicable features
 5. **Navigate** → All appropriate features are available
 
@@ -84,7 +84,7 @@ useEffect(() => {
 
 ## Feature Comparison
 
-| Feature | Manual Height | 3-Axis Panorama | Notes |
+| Feature | Basic Rig | Advanced Rig | Notes |
 |---------|:---:|:---:|---|
 | **Dashboard** | ✅ | ✅ | Always available |
 | **Live Scanner** | ✅ | ✅ | Position-agnostic |
@@ -107,7 +107,7 @@ useEffect(() => {
 
 2. **App.tsx**
    - Imported `RigType` from types
-   - Added `rigType` state with default `MANUAL_HEIGHT`
+   - Added `rigType` state with default `BASIC_RIG`
    - Restructured sidebar navigation with rig selector
    - Added conditional sidebar items based on rig type
    - Added useEffect for automatic view reset on rig change
@@ -125,7 +125,7 @@ useEffect(() => {
 
 ## Switching Behavior Examples
 
-### Example 1: Manual Height → 3-Axis Panorama
+### Example 1: Basic Rig → Advanced Rig
 **Current View:** Manual Calibration  
 **Action:** Click "3-Axis + Panorama" selector  
 **Result:** 
@@ -134,9 +134,9 @@ useEffect(() => {
 - Manual Calibration option hidden
 - User sees message implicitly (new menu structure)
 
-### Example 2: 3-Axis Panorama → Manual Height
+### Example 2: Advanced Rig → Basic Rig
 **Current View:** Safe Motion Control  
-**Action:** Click "Manual Height" selector  
+**Action:** Click "Basic Rig" selector  
 **Result:**
 - View automatically redirects to Dashboard
 - Sidebar shows: Manual Calibration, Stereo Calibration
@@ -156,19 +156,19 @@ useEffect(() => {
 
 ## Disabled Feature Logic
 
-### Why Manual Calibration is Disabled for 3-Axis Panorama:
+### Why Manual Calibration is Disabled for Advanced Rig:
 ✓ Designed for single fixed position  
 ✓ 3-axis system requires motion-aware calibration  
 ✓ Users should use Stereo Calibration instead (supports motion)  
 ✓ Prevents user confusion with incompatible workflow  
 
-### Why Panorama Scanner is Disabled for Manual Height:
+### Why Panorama Scanner is Disabled for Basic Rig:
 ✓ Requires motorized multi-position control  
 ✓ Manual system has no position feedback  
 ✓ Cannot track camera position across images  
 ✓ Would produce unreliable 3D reconstruction  
 
-### Why Safe Motion is Disabled for Manual Height:
+### Why Safe Motion is Disabled for Basic Rig:
 ✓ For human-operated mechanical adjustment  
 ✓ No motorized axes to control  
 ✓ No collision detection needed  
@@ -207,13 +207,13 @@ useEffect(() => {
 
 - ✅ TypeScript compilation passes (no errors)
 - ✅ Rig selector visible in sidebar
-- ✅ Manual Height selection works
-- ✅ 3-Axis Panorama selection works
+- ✅ Basic Rig selection works
+- ✅ Advanced Rig selection works
 - ✅ Sidebar features update on selection
 - ✅ Stereo Calibration available on both rigs
-- ✅ Manual Calibration only shows for Manual Height
-- ✅ Panorama Scanner only shows for 3-Axis Panorama
-- ✅ Safe Motion only shows for 3-Axis Panorama
+- ✅ Manual Calibration only shows for Basic Rig
+- ✅ Panorama Scanner only shows for Advanced Rig
+- ✅ Safe Motion only shows for Advanced Rig
 - ✅ View redirects when switching to incompatible rig
 - ✅ Dashboard always accessible (fallback)
 - ✅ Students, History, Scanner always available
@@ -235,15 +235,15 @@ useEffect(() => {
 1. **No database migrations needed** - State-based configuration
 2. **No backend changes required** - Frontend-only feature
 3. **Backward compatible** - Existing functionality preserved
-4. **Default safe** - Manual Height is default (simpler setup)
+4. **Default safe** - Basic Rig is default (simpler setup)
 5. **Ready for production** - Feature-complete implementation
 
 ---
 
 ## Quick Start for Users
 
-1. **Manual Height Setup:**
-   - Leave default "Manual Height" selected
+1. **Basic Rig Setup:**
+   - Leave default "Basic Rig" selected
    - Only Manual Calibration and Stereo Calibration visible
    - Perfect for single-position inspection
 
