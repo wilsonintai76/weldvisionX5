@@ -1638,30 +1638,30 @@ const App: React.FC = () => {
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Rig Configuration</p>
             <div className="space-y-2">
               <button
-                onClick={() => setRigType(RigType.MANUAL_HEIGHT)}
+                onClick={() => setRigType(RigType.BASIC_RIG)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  rigType === RigType.MANUAL_HEIGHT
+                  rigType === RigType.BASIC_RIG
                     ? 'bg-industrial-blue text-white shadow-lg shadow-industrial-blue/20'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
-                Manual Height
+                Basic Rig (Manual)
               </button>
               <button
-                onClick={() => setRigType(RigType.THREE_AXIS_PANORAMA)}
+                onClick={() => setRigType(RigType.ADVANCED_RIG)}
                 className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  rigType === RigType.THREE_AXIS_PANORAMA
+                  rigType === RigType.ADVANCED_RIG
                     ? 'bg-industrial-blue text-white shadow-lg shadow-industrial-blue/20'
                     : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                 }`}
               >
-                3-Axis + Panorama
+                Advanced Rig (3-Axis)
               </button>
             </div>
           </div>
 
-          {/* Manual Height Rig - Features */}
-          {rigType === RigType.MANUAL_HEIGHT && (
+          {/* Basic Rig - Features */}
+          {rigType === RigType.BASIC_RIG && (
             <>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mt-4 mb-3">Features</p>
               <SidebarItem 
@@ -1673,8 +1673,8 @@ const App: React.FC = () => {
             </>
           )}
 
-          {/* 3-Axis Panorama Rig - Features */}
-          {rigType === RigType.THREE_AXIS_PANORAMA && (
+          {/* Advanced Rig - Features */}
+          {rigType === RigType.ADVANCED_RIG && (
             <>
               <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mt-4 mb-3">Features</p>
               <SidebarItem 
