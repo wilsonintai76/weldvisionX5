@@ -173,11 +173,11 @@ const ManualBedCalibration: React.FC = () => {
           <div>
             <h3 className="text-lg font-semibold text-white">Manual Bed Calibration</h3>
             <p className="text-sm text-slate-400 mt-1">
-              Fixed bed with manual height and tilt adjustment
+              Fixed bed - Height and tilt adjusted by hand (no motors)
             </p>
           </div>
           <div className="text-right">
-            <div className="text-2xl font-bold text-blue-400">Manual</div>
+            <div className="text-2xl font-bold text-blue-400">Hand Adjusted</div>
             <p className="text-xs text-slate-500">Single Capture</p>
           </div>
         </div>
@@ -298,15 +298,14 @@ const ManualBedCalibration: React.FC = () => {
                 <p>Place checkerboard pattern flat on your fixed bed</p>
               </div>
               <div>
-                <p className="font-medium text-white mb-1">2. Adjust Height</p>
+                <p className="font-medium text-white mb-1">2. Adjust Height (by hand)</p>
                 <p>
-                  Manually adjust camera height until checkerboard fills ~50% of
-                  frame
+                  Manually move camera up/down until checkerboard fills ~50% of frame
                 </p>
               </div>
               <div>
-                <p className="font-medium text-white mb-1">3. Adjust Tilt</p>
-                <p>Tilt card so pattern is at slight angle (15-30°)</p>
+                <p className="font-medium text-white mb-1">3. Adjust Tilt (by hand)</p>
+                <p>Manually tilt camera so pattern is at slight angle (15-30°)</p>
               </div>
               <div>
                 <p className="font-medium text-white mb-1">4. Capture & Calibrate</p>
@@ -320,57 +319,66 @@ const ManualBedCalibration: React.FC = () => {
             <div className="bg-slate-800 border border-slate-700 rounded-lg p-4">
               <h4 className="font-semibold text-white mb-3 flex items-center">
                 <Activity className="w-5 h-5 mr-2 text-industrial-warning" />
-                Current Adjustments
+                Manual Hand Adjustments
               </h4>
-              <div className="space-y-3">
+              <p className="text-xs text-slate-400 mb-4">
+                Use your hands to adjust the camera height and tilt. No motors - manual adjustment only.
+              </p>
+              <div className="space-y-4">
                 {/* Height Adjustment */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-400">Height</span>
-                    <span className="text-sm font-mono text-white">
+                <div className="bg-slate-700 rounded p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold text-white">Height (Hand Adjust)</span>
+                    <span className="text-sm font-mono text-industrial-blue">
                       {estimatedHeight.toFixed(1)} mm
                     </span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setEstimatedHeight((h) => Math.max(0, h - 5))}
-                      className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-white text-sm flex items-center justify-center space-x-1"
+                      className="flex-1 px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded text-white text-sm flex items-center justify-center space-x-2 transition-colors"
+                      disabled
                     >
                       <ArrowDown className="w-4 h-4" />
-                      <span>Down</span>
+                      <span>Lower (↓)</span>
                     </button>
                     <button
                       onClick={() => setEstimatedHeight((h) => h + 5)}
-                      className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-white text-sm flex items-center justify-center space-x-1"
+                      className="flex-1 px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded text-white text-sm flex items-center justify-center space-x-2 transition-colors"
+                      disabled
                     >
                       <ArrowUp className="w-4 h-4" />
-                      <span>Up</span>
+                      <span>Raise (↑)</span>
                     </button>
                   </div>
+                  <p className="text-xs text-slate-300 mt-2">👆 Manually adjust camera height until card fills 50% of frame</p>
                 </div>
 
                 {/* Tilt Adjustment */}
-                <div>
-                  <div className="flex items-center justify-between mb-2">
-                    <span className="text-sm text-slate-400">Tilt</span>
-                    <span className="text-sm font-mono text-white">{estimatedTilt}°</span>
+                <div className="bg-slate-700 rounded p-3">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm font-semibold text-white">Tilt Angle (Hand Adjust)</span>
+                    <span className="text-sm font-mono text-industrial-blue">{estimatedTilt}°</span>
                   </div>
                   <div className="flex items-center space-x-2">
                     <button
                       onClick={() => setEstimatedTilt((t) => Math.max(-45, t - 5))}
-                      className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-white text-sm flex items-center justify-center space-x-1"
+                      className="flex-1 px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded text-white text-sm flex items-center justify-center space-x-2 transition-colors"
+                      disabled
                     >
                       <RotateCw className="w-4 h-4" />
-                      <span>Left</span>
+                      <span>Tilt Left (↙)</span>
                     </button>
                     <button
                       onClick={() => setEstimatedTilt((t) => Math.min(45, t + 5))}
-                      className="flex-1 px-3 py-2 bg-slate-700 hover:bg-slate-600 rounded text-white text-sm flex items-center justify-center space-x-1"
+                      className="flex-1 px-3 py-2 bg-slate-600 hover:bg-slate-500 rounded text-white text-sm flex items-center justify-center space-x-2 transition-colors"
+                      disabled
                     >
                       <RotateCcw className="w-4 h-4" />
-                      <span>Right</span>
+                      <span>Tilt Right (↘)</span>
                     </button>
                   </div>
+                  <p className="text-xs text-slate-300 mt-2">👆 Manually tilt camera until card is at slight angle (15-30°)</p>
                 </div>
               </div>
             </div>
