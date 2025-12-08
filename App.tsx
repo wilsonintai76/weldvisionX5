@@ -16,7 +16,6 @@ import {
   Trash2,
   AlertTriangle,
   Grid3x3,
-  Cpu,
   RefreshCw,
   Save,
   RotateCcw,
@@ -30,7 +29,6 @@ import {
   ChevronLeft,
   Filter,
   HelpCircle,
-  Lightbulb,
   Brain,
   BarChart3
 } from 'lucide-react';
@@ -51,12 +49,9 @@ import { RUBRIC_PRESETS, CAMERA_FEED_PLACEHOLDER } from './constants';
 import { fetchStudents, fetchHistory, triggerScan, addStudent, updateStudent, deleteStudent, triggerCalibration, saveCalibration, getRubric, saveRubric } from './services/apiService';
 import { MetricCard } from './components/MetricCard';
 import UserGuide from './components/UserGuide';
-import { LEDControl } from './components/LEDControl';
 import StereoCameraCalibration from './components/StereoCameraCalibration';
 import BedCalibration from './components/BedCalibration';
 import ManualBedCalibration from './components/ManualBedCalibration';
-import PanoramaScannerView from './components/PanoramaScannerView';
-import SafeMotionControlView from './components/SafeMotionControlView';
 import InferenceMonitor from './components/InferenceMonitor';
 import TrainingDashboard from './components/TrainingDashboard';
 import ModelManagement from './components/ModelManagement';
@@ -1005,15 +1000,6 @@ const SettingsView = ({
              </div>
            </div>
         </div>
-
-        {/* LED Control Section */}
-        <div className="mt-8 pt-8 border-t border-slate-700">
-          <h2 className="text-2xl font-bold text-white mb-6 flex items-center">
-            <Lightbulb className="w-6 h-6 mr-3 text-industrial-orange" />
-            Lighting Control
-          </h2>
-          <LEDControl />
-        </div>
       </div>
     </div>
   );
@@ -1497,7 +1483,6 @@ const StudentsView = ({
 
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>(ViewState.DASHBOARD);
-  const [rigType, setRigType] = useState<RigType>(RigType.BASIC_RIG);
   const [students, setStudents] = useState<Student[]>([]);
   const [scans, setScans] = useState<ScanResult[]>([]);
   const [rubric, setRubric] = useState<RubricConfig>(RUBRIC_PRESETS['Standard']);
@@ -1525,21 +1510,6 @@ const App: React.FC = () => {
     };
     init();
   }, []);
-
-  // Reset view when switching rig types if current view is not applicable
-  useEffect(() => {
-    if (rigType === RigType.BASIC_RIG) {
-      // Basic Rig: disable panorama and safe motion features
-      if ([ViewState.PANORAMA_SCANNER, ViewState.SAFE_MOTION].includes(view)) {
-        setView(ViewState.DASHBOARD);
-      }
-    } else if (rigType === RigType.ADVANCED_RIG) {
-      // Advanced Rig: disable manual bed calibration
-      if ([ViewState.MANUAL_BED_CALIBRATION].includes(view)) {
-        setView(ViewState.DASHBOARD);
-      }
-    }
-  }, [rigType, view]);
 
   const handleScanComplete = useCallback((newScan: ScanResult) => {
     setScans(prev => [newScan, ...prev]);
@@ -1633,70 +1603,14 @@ const App: React.FC = () => {
             onClick={() => setView(ViewState.HISTORY)} 
           />
 
-          {/* Rig Type Selector */}
-          <div className="my-4 px-2 pt-4 border-t border-slate-800">
-            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Rig Configuration</p>
-            <div className="space-y-2">
-              <button
-                onClick={() => setRigType(RigType.BASIC_RIG)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  rigType === RigType.BASIC_RIG
-                    ? 'bg-industrial-blue text-white shadow-lg shadow-industrial-blue/20'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                Basic Rig (Manual)
-              </button>
-              <button
-                onClick={() => setRigType(RigType.ADVANCED_RIG)}
-                className={`w-full text-left px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  rigType === RigType.ADVANCED_RIG
-                    ? 'bg-industrial-blue text-white shadow-lg shadow-industrial-blue/20'
-                    : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                }`}
-              >
-                Advanced Rig (3-Axis)
-              </button>
-            </div>
-          </div>
-
-          {/* Basic Rig - Features */}
-          {rigType === RigType.BASIC_RIG && (
-            <>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mt-4 mb-3">Features</p>
-              <SidebarItem 
-                icon={Settings} 
-                label="Manual Calibration" 
-                active={view === ViewState.MANUAL_BED_CALIBRATION} 
-                onClick={() => setView(ViewState.MANUAL_BED_CALIBRATION)} 
-              />
-            </>
-          )}
-
-          {/* Advanced Rig - Features */}
-          {rigType === RigType.ADVANCED_RIG && (
-            <>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mt-4 mb-3">Features</p>
-              <SidebarItem 
-                icon={Sparkles} 
-                label="Panorama Scanner" 
-                active={view === ViewState.PANORAMA_SCANNER} 
-                onClick={() => setView(ViewState.PANORAMA_SCANNER)} 
-              />
-              <SidebarItem 
-                icon={Cpu} 
-                label="Safe Motion Control" 
-                active={view === ViewState.SAFE_MOTION} 
-                onClick={() => setView(ViewState.SAFE_MOTION)} 
-              />
-              <SidebarItem 
-                icon={Camera} 
-                label="Stereo Calibration" 
-                active={view === ViewState.STEREO_CALIBRATION} 
-                onClick={() => setView(ViewState.STEREO_CALIBRATION)} 
-              />
-            </>
-          )}
+          {/* Features */}
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mt-4 mb-3">Features</p>
+          <SidebarItem 
+            icon={Settings} 
+            label="Manual Calibration" 
+            active={view === ViewState.MANUAL_BED_CALIBRATION} 
+            onClick={() => setView(ViewState.MANUAL_BED_CALIBRATION)} 
+          />
 
           {/* Common Settings */}
           <div className="mt-4 pt-4 border-t border-slate-800">
@@ -1771,8 +1685,6 @@ const App: React.FC = () => {
               {view === ViewState.HISTORY && 'Scan Archives'}
               {view === ViewState.MANUAL_BED_CALIBRATION && 'Manual Calibration'}
               {view === ViewState.STEREO_CALIBRATION && 'Stereo Camera Calibration'}
-              {view === ViewState.PANORAMA_SCANNER && 'Panorama Scanner'}
-              {view === ViewState.SAFE_MOTION && 'Safe Motion Control'}
               {view === ViewState.INFERENCE_MONITOR && 'Inference Monitor'}
               {view === ViewState.TRAINING_DASHBOARD && 'Model Training'}
               {view === ViewState.MODEL_MANAGEMENT && 'Model Management'}
@@ -1832,12 +1744,6 @@ const App: React.FC = () => {
         )}
         {view === ViewState.STEREO_CALIBRATION && (
           <StereoCameraCalibration />
-        )}
-        {view === ViewState.PANORAMA_SCANNER && (
-          <PanoramaScannerView />
-        )}
-        {view === ViewState.SAFE_MOTION && (
-          <SafeMotionControlView />
         )}
         {view === ViewState.INFERENCE_MONITOR && (
           <InferenceMonitor />

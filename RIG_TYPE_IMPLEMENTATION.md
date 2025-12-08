@@ -1,53 +1,62 @@
-# Rig Type Selector Implementation - Complete
+# Rig Type Selector Implementation - SIMPLIFIED FOR BASIC RIG ONLY
 
 ## Summary
 
-Successfully implemented a **Rig Type Configuration System** that allows users to switch between two distinct rig setups, with automatic feature enable/disable based on selection.
+The system now uses **Basic Rig (Manual) only**. Advanced Rig features (Panorama Scanner, Safe Motion Control, and LED Control) have been removed to focus on core functionality.
 
 ---
 
 ## Implementation Details
 
-### 1. **Type System Update** (`types.ts`)
-Added new enum for rig types:
+### 1. **Type System** (`types.ts`)
+Enum now contains only Basic Rig:
 ```typescript
 export enum RigType {
   BASIC_RIG = 'BASIC_RIG',
-  ADVANCED_RIG = 'ADVANCED_RIG',
 }
 ```
 
 ### 2. **State Management** (`App.tsx`)
-- Added `rigType` state: `useState<RigType>(RigType.BASIC_RIG)`
-- Default selection: **Basic Rig** (Manual)
-- User can change anytime via sidebar selector
+- Removed `rigType` state (always Basic Rig)
+- Removed rig type selector UI
+- Simplified to single-rig configuration
 
-### 3. **Sidebar Navigation Updates** (`App.tsx`)
-Restructured sidebar with:
-- **Rig Configuration Section**: Two button selector
-- **Dynamic Feature Menu**: Features change based on selected rig
-- **View Reset Logic**: Automatically redirects incompatible views
-
-#### Basic Rig (Manual) Features:
-- ✅ Manual Calibration
+### 3. **Sidebar Navigation** (`App.tsx`)
+Updated sidebar with basic features only:
+- ✅ Manual Calibration (hand-adjusted, no motors)
 - ✅ Stereo Calibration
-- ❌ Panorama Scanner (disabled)
-- ❌ Safe Motion Control (disabled)
+- ✅ Dashboard, Scanner, Students, History
+- ✅ Inference Monitor, Model Training, Model Management
+- ❌ Panorama Scanner (removed)
+- ❌ Safe Motion Control (removed)
+- ❌ LED Control (removed)
 
-#### Advanced Rig (3-Axis) Features:
-- ✅ Panorama Scanner
-- ✅ Safe Motion Control
-- ✅ Stereo Calibration
-- ❌ Manual Calibration (disabled)
+### 4. **Removed Components**
+- `LEDControl.tsx` - Deleted
+- `PanoramaScannerView.tsx` - Deleted
+- `SafeMotionControlView.tsx` - Deleted
 
-### 4. **Automatic View Management** (`App.tsx`)
-```typescript
-useEffect(() => {
-  if (rigType === RigType.BASIC_RIG) {
-    // Basic Rig: disable panorama and safe motion
-    if ([ViewState.PANORAMA_SCANNER, ViewState.SAFE_MOTION].includes(view)) {
-      setView(ViewState.DASHBOARD);
-    }
+### 5. **Removed Backend Routes**
+- `led_routes.py` - Deleted
+- LED controller initialization removed from `app.py`
+
+---
+
+## Rig Type Removed: Advanced Rig (3-Axis)
+The Advanced Rig configuration with 3-axis motor control, panorama scanning, and safe motion features has been deprecated as the system focuses on manual operation.
+
+### Features That Were Advanced Rig Only (Now Removed):
+- Panorama Scanner - Multi-frame stitching for long welds
+- Safe Motion Control - Virtual zero and motion protection
+- LED API control - Programmatic light control
+
+---
+
+## Manual Calibration (Basic Rig)
+Users manually adjust:
+- **Height**: Hand crank / manual adjustment
+- **Tilt**: Hand adjustment
+- No servo motors required
   } else if (rigType === RigType.ADVANCED_RIG) {
     // Advanced Rig: disable manual bed calibration
     if ([ViewState.MANUAL_BED_CALIBRATION].includes(view)) {

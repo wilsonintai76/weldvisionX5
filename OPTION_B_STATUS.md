@@ -159,24 +159,24 @@ Tests Completed:    TBD
 
 ## 🎨 UI Features
 
-### Sidebar Navigation
+### Sidebar Navigation (Basic Rig Only)
 ```
 📊 Dashboard
 📷 Live Scanner
 👥 Students
 📜 Scan History
-├─ Manual Calibration (if Basic Rig)
-├─ Panorama Scanner (if Advanced Rig)
-├─ Safe Motion Control (if Advanced Rig)
-├─ Stereo Calibration (if Advanced Rig)
+├─ Manual Calibration
+├─ Stereo Calibration
 │
-🧠 Inference Monitor  ← NEW
-✨ Model Training      ← NEW
-📊 Model Management    ← NEW
+🧠 Inference Monitor
+✨ Model Training
+📊 Model Management
 │
 ⚙️ Settings
 ❓ Help & Guide
 ```
+
+Note: Advanced Rig features (Panorama Scanner, Safe Motion Control) and LED Control have been removed.
 
 ### Inference Monitor View
 ```

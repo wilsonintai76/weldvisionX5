@@ -11,24 +11,19 @@
 - ✅ History view (past scans)
 - ✅ Calibration views (3 types)
 - ✅ Settings panel
-- ✅ LED control
-- ✅ Multiple rig types (Basic Rig + Advanced Rig)
+- ✅ Basic Rig (Manual) only
 
 **Backend (Python/Flask):**
 - ✅ Core Flask server (app.py)
 - ✅ Student management API routes
 - ✅ Scan execution API routes
 - ✅ Calibration API routes (Triple Z-axis)
-- ✅ Smart Rig Controller routes (Panorama)
-- ✅ Safe Motion Controller routes
-- ✅ LED control API routes
 - ✅ Vision evaluator (WeldEvaluator class)
 - ✅ Camera integration (ROS2)
 - ✅ Database models (Student, Scan, etc.)
 
 **Hardware Integration:**
 - ✅ Camera handling
-- ✅ LED control
 - ✅ ROS2 support
 - ✅ Hardware detection
 
