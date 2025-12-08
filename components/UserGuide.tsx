@@ -12,6 +12,8 @@ import {
   Lightbulb,
   Users,
   Settings,
+  Brain,
+  TrendingUp,
 } from 'lucide-react';
 
 interface GuideProps {
@@ -19,7 +21,7 @@ interface GuideProps {
   onClose: () => void;
 }
 
-type GuideSection = 'welcome' | 'hardware' | 'calibration' | 'scanning' | 'troubleshooting' | 'tips';
+type GuideSection = 'welcome' | 'hardware' | 'calibration' | 'scanning' | 'ai' | 'troubleshooting' | 'tips';
 
 const UserGuide: React.FC<GuideProps> = ({ isOpen, onClose }) => {
   const [activeSection, setActiveSection] = useState<GuideSection>('welcome');
@@ -29,6 +31,7 @@ const UserGuide: React.FC<GuideProps> = ({ isOpen, onClose }) => {
     hardware: { title: 'Hardware Setup', icon: Cable },
     calibration: { title: 'Camera Calibration', icon: Ruler },
     scanning: { title: 'Running Scans', icon: Camera },
+    ai: { title: 'AI & Training', icon: Brain },
     troubleshooting: { title: 'Troubleshooting', icon: AlertCircle },
     tips: { title: 'Best Practices', icon: Lightbulb },
   };
@@ -79,6 +82,7 @@ const UserGuide: React.FC<GuideProps> = ({ isOpen, onClose }) => {
             {activeSection === 'hardware' && <HardwareSection />}
             {activeSection === 'calibration' && <CalibrationSection />}
             {activeSection === 'scanning' && <ScanningSection />}
+            {activeSection === 'ai' && <AITrainingSection />}
             {activeSection === 'troubleshooting' && <TroubleshootingSection />}
             {activeSection === 'tips' && <TipsSection />}
           </div>
@@ -601,6 +605,168 @@ const TroubleshootingSection: React.FC = () => (
               <li>4. Check network connectivity to backend</li>
             </ul>
           </div>
+        </div>
+      </div>
+    </div>
+  </div>
+);
+
+const AITrainingSection: React.FC = () => (
+  <div className="space-y-6">
+    <div className="bg-gradient-to-r from-industrial-blue/10 to-industrial-success/10 border border-industrial-blue/20 rounded-lg p-6">
+      <h2 className="text-2xl font-bold text-white mb-4">AI & Training Features</h2>
+      <p className="text-slate-300 mb-4">
+        WeldMaster AI includes advanced machine learning capabilities for real-time inference monitoring and custom model training.
+      </p>
+      <div className="grid grid-cols-2 gap-4 mt-4">
+        <div className="flex items-start gap-3">
+          <Brain className="w-5 h-5 text-industrial-blue mt-1 flex-shrink-0" />
+          <div>
+            <h4 className="font-semibold text-white">Inference Monitor</h4>
+            <p className="text-sm text-slate-400">Real-time AI predictions</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <TrendingUp className="w-5 h-5 text-industrial-blue mt-1 flex-shrink-0" />
+          <div>
+            <h4 className="font-semibold text-white">Model Training</h4>
+            <p className="text-sm text-slate-400">Custom model creation</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <Settings className="w-5 h-5 text-industrial-success mt-1 flex-shrink-0" />
+          <div>
+            <h4 className="font-semibold text-white">Model Management</h4>
+            <p className="text-sm text-slate-400">Deploy & compare models</p>
+          </div>
+        </div>
+        <div className="flex items-start gap-3">
+          <CheckCircle2 className="w-5 h-5 text-industrial-success mt-1 flex-shrink-0" />
+          <div>
+            <h4 className="font-semibold text-white">Performance Analysis</h4>
+            <p className="text-sm text-slate-400">Accuracy & metrics</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+      <h3 className="text-lg font-semibold text-white mb-4">Inference Monitor</h3>
+      <p className="text-slate-300 mb-4">Monitor AI predictions in real-time as you scan welds:</p>
+      <ul className="space-y-3 text-slate-300">
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">View Live Predictions:</span> See AI confidence scores as you scan</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">Detection Methods:</span> Understand which features are being detected</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">Confidence Thresholds:</span> Adjust sensitivity for your needs</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">Performance Metrics:</span> Track detection accuracy over time</span>
+        </li>
+      </ul>
+    </div>
+
+    <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+      <h3 className="text-lg font-semibold text-white mb-4">Model Training</h3>
+      <p className="text-slate-300 mb-4">Train custom models on your specific weld data:</p>
+      <div className="space-y-4">
+        <div>
+          <h4 className="font-semibold text-white mb-2">Step 1: Prepare Data</h4>
+          <p className="text-slate-300 text-sm ml-4">Collect labeled weld images from your previous scans</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-white mb-2">Step 2: Start Training</h4>
+          <p className="text-slate-300 text-sm ml-4">Select data source and training parameters in Model Training panel</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-white mb-2">Step 3: Monitor Progress</h4>
+          <p className="text-slate-300 text-sm ml-4">Watch training metrics (accuracy, loss) in real-time</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-white mb-2">Step 4: Evaluate Results</h4>
+          <p className="text-slate-300 text-sm ml-4">Check accuracy on validation data before deploying</p>
+        </div>
+        <div>
+          <h4 className="font-semibold text-white mb-2">Step 5: Deploy or Iterate</h4>
+          <p className="text-slate-300 text-sm ml-4">Use if good, or adjust parameters and train again</p>
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+      <h3 className="text-lg font-semibold text-white mb-4">Model Management</h3>
+      <p className="text-slate-300 mb-4">Manage and deploy your trained models:</p>
+      <ul className="space-y-3 text-slate-300">
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">View Models:</span> List all trained models with details</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">Compare Performance:</span> Side-by-side accuracy comparison</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">Deploy Models:</span> Activate a model for live scanning</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">Download Models:</span> Export trained models for backup or sharing</span>
+        </li>
+      </ul>
+    </div>
+
+    <div className="bg-gradient-to-r from-industrial-blue/10 to-industrial-success/10 border border-industrial-blue/20 rounded-lg p-6">
+      <h3 className="text-lg font-semibold text-white mb-4">Best Practices for AI & Training</h3>
+      <div className="space-y-3">
+        <div className="flex gap-3">
+          <CheckCircle2 className="w-5 h-5 text-industrial-success flex-shrink-0 mt-0.5" />
+          <p className="text-slate-300"><span className="font-semibold">Data Quality:</span> Use consistently lit, well-positioned weld images</p>
+        </div>
+        <div className="flex gap-3">
+          <CheckCircle2 className="w-5 h-5 text-industrial-success flex-shrink-0 mt-0.5" />
+          <p className="text-slate-300"><span className="font-semibold">Balanced Data:</span> Include examples of both good and defective welds</p>
+        </div>
+        <div className="flex gap-3">
+          <CheckCircle2 className="w-5 h-5 text-industrial-success flex-shrink-0 mt-0.5" />
+          <p className="text-slate-300"><span className="font-semibold">Training Time:</span> Allow 2-5 minutes for initial training depending on data size</p>
+        </div>
+        <div className="flex gap-3">
+          <CheckCircle2 className="w-5 h-5 text-industrial-success flex-shrink-0 mt-0.5" />
+          <p className="text-slate-300"><span className="font-semibold">Validation:</span> Test models on new welds before full deployment</p>
+        </div>
+        <div className="flex gap-3">
+          <CheckCircle2 className="w-5 h-5 text-industrial-success flex-shrink-0 mt-0.5" />
+          <p className="text-slate-300"><span className="font-semibold">Continuous Improvement:</span> Regularly retrain with new data for better accuracy</p>
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+      <h3 className="text-lg font-semibold text-white mb-4">Common AI & Training Questions</h3>
+      <div className="space-y-4">
+        <div>
+          <p className="font-semibold text-white mb-2">How much data do I need to train?</p>
+          <p className="text-slate-300 text-sm">Start with at least 50-100 labeled weld images for good results. More data (200+) gives better accuracy.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-white mb-2">Can I train while scanning?</p>
+          <p className="text-slate-300 text-sm">Yes, but performance may be impacted. We recommend training during non-peak hours or on a separate system.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-white mb-2">How do I know if my model is good?</p>
+          <p className="text-slate-300 text-sm">Check the accuracy percentage in Model Management. Aim for 85%+ accuracy. Test on new welds to confirm.</p>
+        </div>
+        <div>
+          <p className="font-semibold text-white mb-2">What if accuracy is low?</p>
+          <p className="text-slate-300 text-sm">Collect more/better data, check lighting and camera calibration, or try different training parameters.</p>
         </div>
       </div>
     </div>
