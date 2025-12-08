@@ -5,6 +5,14 @@ opencv-python
 numpy
 pyyaml
 
+# ML/AI Training & Inference
+torch>=2.0.0
+torchvision>=0.15.0
+scikit-image
+pillow>=9.0.0
+onnx>=1.13.0
+onnxruntime>=1.14.0
+
 # ROS2 Integration (optional, for RDK X5)
 # Uncomment when deploying on RDK X5 with ROS2 installed
 # rclpy

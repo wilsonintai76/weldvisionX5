@@ -116,6 +116,30 @@ try:
 except Exception as e:
     logger.warning(f"SafeMotionController routes initialization failed: {e}")
 
+# Init Inference Routes (Hybrid edge inference)
+try:
+    from api.inference_routes import inference_bp
+    app.register_blueprint(inference_bp)
+    logger.info("Inference routes registered")
+except Exception as e:
+    logger.warning(f"Inference routes initialization failed: {e}")
+
+# Init Training Routes (Desktop training pipeline)
+try:
+    from api.training_routes import training_bp
+    app.register_blueprint(training_bp)
+    logger.info("Training routes registered")
+except Exception as e:
+    logger.warning(f"Training routes initialization failed: {e}")
+
+# Init Model Management Routes (Model deployment & tracking)
+try:
+    from api.model_routes import model_bp
+    app.register_blueprint(model_bp)
+    logger.info("Model management routes registered")
+except Exception as e:
+    logger.warning(f"Model management routes initialization failed: {e}")
+
 # ROS2 State
 current_frame = None
 current_depth = None

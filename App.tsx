@@ -30,7 +30,9 @@ import {
   ChevronLeft,
   Filter,
   HelpCircle,
-  Lightbulb
+  Lightbulb,
+  Brain,
+  BarChart3
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -55,6 +57,9 @@ import BedCalibration from './components/BedCalibration';
 import ManualBedCalibration from './components/ManualBedCalibration';
 import PanoramaScannerView from './components/PanoramaScannerView';
 import SafeMotionControlView from './components/SafeMotionControlView';
+import InferenceMonitor from './components/InferenceMonitor';
+import TrainingDashboard from './components/TrainingDashboard';
+import ModelManagement from './components/ModelManagement';
 
 // --- Sub-Components ---
 
@@ -1695,6 +1700,29 @@ const App: React.FC = () => {
 
           {/* Common Settings */}
           <div className="mt-4 pt-4 border-t border-slate-800">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mb-3">AI & Training</p>
+            <SidebarItem 
+              icon={Brain} 
+              label="Inference Monitor" 
+              active={view === ViewState.INFERENCE_MONITOR} 
+              onClick={() => setView(ViewState.INFERENCE_MONITOR)} 
+            />
+            <SidebarItem 
+              icon={Sparkles} 
+              label="Model Training" 
+              active={view === ViewState.TRAINING_DASHBOARD} 
+              onClick={() => setView(ViewState.TRAINING_DASHBOARD)} 
+            />
+            <SidebarItem 
+              icon={BarChart3} 
+              label="Model Management" 
+              active={view === ViewState.MODEL_MANAGEMENT} 
+              onClick={() => setView(ViewState.MODEL_MANAGEMENT)} 
+            />
+          </div>
+
+          {/* Settings */}
+          <div className="mt-4 pt-4 border-t border-slate-800">
             <SidebarItem 
               icon={Settings} 
               label="Settings" 
@@ -1745,11 +1773,20 @@ const App: React.FC = () => {
               {view === ViewState.STEREO_CALIBRATION && 'Stereo Camera Calibration'}
               {view === ViewState.PANORAMA_SCANNER && 'Panorama Scanner'}
               {view === ViewState.SAFE_MOTION && 'Safe Motion Control'}
+              {view === ViewState.INFERENCE_MONITOR && 'Inference Monitor'}
+              {view === ViewState.TRAINING_DASHBOARD && 'Model Training'}
+              {view === ViewState.MODEL_MANAGEMENT && 'Model Management'}
               {view === ViewState.SETTINGS && 'System Configuration'}
             </h2>
             <p className="text-slate-400 text-sm mt-1">
               {view === ViewState.SCANNER 
                 ? 'Place workpiece in ROI and stabilize before capturing.' 
+                : view === ViewState.INFERENCE_MONITOR
+                ? 'Real-time inference monitoring and statistics.'
+                : view === ViewState.TRAINING_DASHBOARD
+                ? 'Train models on desktop GPU for improved accuracy.'
+                : view === ViewState.MODEL_MANAGEMENT
+                ? 'Manage, deploy, and compare trained models.'
                 : 'System Status: Nominal | Camera: Connected'}
             </p>
           </div>
@@ -1801,6 +1838,15 @@ const App: React.FC = () => {
         )}
         {view === ViewState.SAFE_MOTION && (
           <SafeMotionControlView />
+        )}
+        {view === ViewState.INFERENCE_MONITOR && (
+          <InferenceMonitor />
+        )}
+        {view === ViewState.TRAINING_DASHBOARD && (
+          <TrainingDashboard />
+        )}
+        {view === ViewState.MODEL_MANAGEMENT && (
+          <ModelManagement />
         )}
         {view === ViewState.SETTINGS && (
           <SettingsView currentRubric={rubric} onSaveRubric={handleSaveRubric} />
