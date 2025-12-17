@@ -30,7 +30,9 @@ import {
   Filter,
   HelpCircle,
   Brain,
-  BarChart3
+  BarChart3,
+  Database,
+  Network
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -55,6 +57,12 @@ import ManualBedCalibration from './components/ManualBedCalibration';
 import InferenceMonitor from './components/InferenceMonitor';
 import TrainingDashboard from './components/TrainingDashboard';
 import ModelManagement from './components/ModelManagement';
+import OrchestrationPanel from './components/OrchestrationPanel';
+import DatasetCapture from './components/DatasetCapture';
+import DatasetLabeler from './components/DatasetLabeler';
+import DatasetStudio from './components/DatasetStudio';
+import './styles/progress.css';
+import { listDatasetFiles } from './api/jobs';
 
 // --- Sub-Components ---
 
@@ -273,17 +281,21 @@ const HistoryView = ({
           <div className="flex items-center gap-2 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2">
              <Calendar className="w-4 h-4 text-slate-500" />
              <input 
-                type="date" 
-                value={dateRange.start}
-                onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-                className="bg-transparent text-white text-sm outline-none w-32 [&::-webkit-calendar-picker-indicator]:invert"
+               type="date" 
+               value={dateRange.start}
+               onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
+               className="bg-transparent text-white text-sm outline-none w-32 [&::-webkit-calendar-picker-indicator]:invert"
+               title="Start Date"
+               placeholder="YYYY-MM-DD"
              />
              <span className="text-slate-500">-</span>
              <input 
-                type="date" 
-                value={dateRange.end}
-                onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-                className="bg-transparent text-white text-sm outline-none w-32 [&::-webkit-calendar-picker-indicator]:invert"
+               type="date" 
+               value={dateRange.end}
+               onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
+               className="bg-transparent text-white text-sm outline-none w-32 [&::-webkit-calendar-picker-indicator]:invert"
+               title="End Date"
+               placeholder="YYYY-MM-DD"
              />
           </div>
           <button 
@@ -374,6 +386,8 @@ const HistoryView = ({
                 disabled={currentPage === 1}
                 onClick={() => setCurrentPage(c => Math.max(1, c - 1))}
                 className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Previous Page"
+                aria-label="Previous Page"
               >
                 <ChevronLeft className="w-4 h-4" />
               </button>
@@ -381,6 +395,8 @@ const HistoryView = ({
                 disabled={currentPage === totalPages || totalPages === 0}
                 onClick={() => setCurrentPage(c => Math.min(totalPages, c + 1))}
                 className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                title="Next Page"
+                aria-label="Next Page"
               >
                 <ChevronRight className="w-4 h-4" />
               </button>
@@ -596,7 +612,13 @@ const CalibrationView = () => {
               <span>{progress}%</span>
             </div>
             <div className="w-full bg-slate-700 rounded-full h-2.5">
-              <div className="bg-industrial-blue h-2.5 rounded-full transition-all duration-300" style={{ width: `${progress}%` }}></div>
+              {(() => {
+                const pct = Math.max(0, Math.min(100, Math.round(progress / 5) * 5));
+                const cls = `w-pct-${pct}`;
+                return (
+                  <div className={`bg-industrial-blue h-2.5 rounded-full transition-all duration-300 ${cls}`}></div>
+                );
+              })()}
             </div>
             <div className="flex items-center justify-between text-xs text-slate-500 font-mono mt-2">
                <span className="flex items-center">
@@ -671,6 +693,8 @@ const CalibrationView = () => {
                                   onChange={(e) => handleMatrixChange(rI, cI, e.target.value)}
                                   className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-right focus:border-industrial-blue focus:ring-1 focus:ring-industrial-blue outline-none text-white font-mono"
                                   step="0.1"
+                                  title="Calibration Matrix Value"
+                                  placeholder="0.0"
                                 />
                               ) : (
                                 <span className="px-2 py-1">{val.toFixed(1)}</span>
@@ -785,6 +809,22 @@ const SettingsView = ({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
+  
+  // RDK Connection Settings
+  const [rdkHost, setRdkHost] = useState<string>('rdk-x5.local');
+  const [rdkUser, setRdkUser] = useState<string>('root');
+  const [rdkDestPath, setRdkDestPath] = useState<string>('/opt/weldvision/models/model.bin');
+  const [rdkSettingsDirty, setRdkSettingsDirty] = useState(false);
+  
+  // Load RDK settings from localStorage
+  useEffect(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem("orchestrationSettings") || "{}");
+      if (saved.deviceHost) setRdkHost(saved.deviceHost);
+      if (saved.deviceUser) setRdkUser(saved.deviceUser);
+      if (saved.destPath) setRdkDestPath(saved.destPath);
+    } catch {}
+  }, []);
 
   // Sync state when prop updates externally
   useEffect(() => {
@@ -818,9 +858,110 @@ const SettingsView = ({
       setIsSaving(false);
     }
   };
+  
+  const handleSaveRdkSettings = () => {
+    try {
+      const settings = JSON.parse(localStorage.getItem("orchestrationSettings") || "{}");
+      settings.deviceHost = rdkHost;
+      settings.deviceUser = rdkUser;
+      settings.destPath = rdkDestPath;
+      localStorage.setItem("orchestrationSettings", JSON.stringify(settings));
+      setRdkSettingsDirty(false);
+      // Notify other tabs/components
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: 'orchestrationSettings',
+        newValue: JSON.stringify(settings)
+      }));
+    } catch (e) {
+      console.error("Failed to save RDK settings:", e);
+    }
+  };
 
   return (
-    <div className="max-w-4xl mx-auto">
+    <div className="max-w-4xl mx-auto space-y-6">
+      {/* RDK Connection Settings */}
+      <div className="bg-slate-800 rounded-2xl border border-slate-700 p-8 shadow-2xl">
+        <div className="flex items-center justify-between mb-6">
+          <div>
+            <h2 className="text-2xl font-bold text-white flex items-center">
+              <Network className="w-6 h-6 mr-3 text-industrial-blue" />
+              RDK X5 Connection
+            </h2>
+            <p className="text-slate-400 mt-1">Configure connection settings for your RDK X5 edge device.</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={handleSaveRdkSettings}
+              disabled={!rdkSettingsDirty}
+              className="px-6 py-2 rounded-lg bg-industrial-blue hover:bg-sky-400 text-white font-bold shadow-lg shadow-industrial-blue/20 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              <Save className="w-4 h-4 mr-2"/>
+              Save Connection
+            </button>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-2">
+              Device Host (IP or Hostname)
+            </label>
+            <input 
+              type="text"
+              value={rdkHost}
+              onChange={(e) => { setRdkHost(e.target.value); setRdkSettingsDirty(true); }}
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none font-mono"
+              placeholder="e.g., 192.168.1.100 or 10.0.0.2"
+            />
+            <p className="text-xs text-slate-500 mt-2">
+              Common options: 
+              <button className="text-industrial-blue hover:underline ml-1" onClick={() => { setRdkHost('192.168.1.100'); setRdkSettingsDirty(true); }}>Router</button>,
+              <button className="text-industrial-blue hover:underline ml-1" onClick={() => { setRdkHost('10.0.0.2'); setRdkSettingsDirty(true); }}>P2P</button>,
+              <button className="text-industrial-blue hover:underline ml-1" onClick={() => { setRdkHost('192.168.7.2'); setRdkSettingsDirty(true); }}>USB</button>
+            </p>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-400 mb-2">
+              SSH Username
+            </label>
+            <input 
+              type="text"
+              value={rdkUser}
+              onChange={(e) => { setRdkUser(e.target.value); setRdkSettingsDirty(true); }}
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none font-mono"
+              placeholder="e.g., root"
+            />
+          </div>
+
+          <div className="md:col-span-2">
+            <label className="block text-sm font-medium text-slate-400 mb-2">
+              Model Destination Path on RDK
+            </label>
+            <input 
+              type="text"
+              value={rdkDestPath}
+              onChange={(e) => { setRdkDestPath(e.target.value); setRdkSettingsDirty(true); }}
+              className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none font-mono"
+              placeholder="/opt/weldvision/models/model.bin"
+            />
+          </div>
+        </div>
+
+        {/* Connection Status */}
+        <div className="mt-6 pt-6 border-t border-slate-700">
+          <div className="flex items-center justify-between">
+            <div className="text-sm text-slate-400">
+              Connection status will be shown when deploying models
+            </div>
+            <div className="text-xs text-slate-500">
+              See Model Training → Orchestration Panel for live connection status
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Grading Rubric Configuration */}
       <div className="bg-slate-800 rounded-2xl border border-slate-700 p-8 shadow-2xl">
         <div className="flex items-center justify-between mb-8">
           <div>
@@ -904,6 +1045,8 @@ const SettingsView = ({
                       value={rubric.targetWidth}
                       onChange={(e) => handleChange('targetWidth', e.target.value)}
                       className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
+                      title="Target Bead Width (mm)"
+                      placeholder="e.g. 8.0"
                     />
                   </div>
                   <div>
@@ -914,6 +1057,8 @@ const SettingsView = ({
                       value={rubric.widthTolerance}
                       onChange={(e) => handleChange('widthTolerance', e.target.value)}
                       className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
+                      title="Width Tolerance (±mm)"
+                      placeholder="e.g. 1.0"
                     />
                   </div>
                 </div>
@@ -937,6 +1082,8 @@ const SettingsView = ({
                       value={rubric.targetHeight}
                       onChange={(e) => handleChange('targetHeight', e.target.value)}
                       className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
+                      title="Target Reinforcement Height (mm)"
+                      placeholder="e.g. 2.0"
                     />
                   </div>
                   <div>
@@ -947,6 +1094,8 @@ const SettingsView = ({
                       value={rubric.heightTolerance}
                       onChange={(e) => handleChange('heightTolerance', e.target.value)}
                       className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
+                      title="Height Tolerance (±mm)"
+                      placeholder="e.g. 0.5"
                     />
                   </div>
                 </div>
@@ -962,7 +1111,7 @@ const SettingsView = ({
                   <div>
                      <label className="block text-sm font-medium text-slate-400 mb-2">Max Allowed Porosity Count</label>
                      <div className="flex items-center space-x-4">
-                       <input 
+                        <input 
                           type="range" 
                           min="0" 
                           max="10" 
@@ -970,6 +1119,7 @@ const SettingsView = ({
                           value={rubric.maxPorosity}
                           onChange={(e) => handleChange('maxPorosity', e.target.value)}
                           className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-industrial-blue"
+                          title="Max Allowed Porosity"
                         />
                         <span className="w-12 text-center bg-slate-900 py-1 rounded border border-slate-600 font-mono">
                           {rubric.maxPorosity}
@@ -979,7 +1129,7 @@ const SettingsView = ({
                   <div>
                      <label className="block text-sm font-medium text-slate-400 mb-2">Max Allowed Spatter Count</label>
                      <div className="flex items-center space-x-4">
-                       <input 
+                        <input 
                           type="range" 
                           min="0" 
                           max="20" 
@@ -987,6 +1137,7 @@ const SettingsView = ({
                           value={rubric.maxSpatter || 0}
                           onChange={(e) => handleChange('maxSpatter', e.target.value)}
                           className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-industrial-orange"
+                          title="Max Allowed Spatter"
                         />
                         <span className="w-12 text-center bg-slate-900 py-1 rounded border border-slate-600 font-mono">
                           {rubric.maxSpatter || 0}
@@ -1040,6 +1191,7 @@ const ScannerView = ({
         <div className="flex gap-4">
            <select 
             className="flex-1 bg-slate-800 border border-slate-600 text-white p-3 rounded-xl focus:ring-2 focus:ring-industrial-blue outline-none"
+            title="Select Student"
             value={selectedStudentId}
             onChange={(e) => setSelectedStudentId(Number(e.target.value) || '')}
           >
@@ -1357,6 +1509,7 @@ const StudentsView = ({
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">Skill Level</label>
                 <select 
+                  title="Skill Level"
                   value={formData.level}
                   onChange={e => setFormData({...formData, level: e.target.value as any})}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none transition-all appearance-none"
@@ -1628,6 +1781,12 @@ const App: React.FC = () => {
               onClick={() => setView(ViewState.TRAINING_DASHBOARD)} 
             />
             <SidebarItem 
+              icon={Database} 
+              label="Dataset Studio" 
+              active={view === ViewState.DATASET_STUDIO} 
+              onClick={() => setView(ViewState.DATASET_STUDIO)} 
+            />
+            <SidebarItem 
               icon={BarChart3} 
               label="Model Management" 
               active={view === ViewState.MODEL_MANAGEMENT} 
@@ -1687,6 +1846,7 @@ const App: React.FC = () => {
               {view === ViewState.STEREO_CALIBRATION && 'Stereo Camera Calibration'}
               {view === ViewState.INFERENCE_MONITOR && 'Inference Monitor'}
               {view === ViewState.TRAINING_DASHBOARD && 'Model Training'}
+              {view === ViewState.DATASET_STUDIO && 'Dataset Studio'}
               {view === ViewState.MODEL_MANAGEMENT && 'Model Management'}
               {view === ViewState.SETTINGS && 'System Configuration'}
             </h2>
@@ -1697,6 +1857,8 @@ const App: React.FC = () => {
                 ? 'Real-time inference monitoring and statistics.'
                 : view === ViewState.TRAINING_DASHBOARD
                 ? 'Train models on desktop GPU for improved accuracy.'
+                : view === ViewState.DATASET_STUDIO
+                ? 'Capture and annotate images in one workspace.'
                 : view === ViewState.MODEL_MANAGEMENT
                 ? 'Manage, deploy, and compare trained models.'
                 : 'System Status: Nominal | Camera: Connected'}
@@ -1749,10 +1911,18 @@ const App: React.FC = () => {
           <InferenceMonitor />
         )}
         {view === ViewState.TRAINING_DASHBOARD && (
-          <TrainingDashboard />
+          <>
+            <TrainingDashboard />
+            <div className="mt-8">
+              <OrchestrationPanel />
+            </div>
+          </>
         )}
+        {view === ViewState.DATASET_STUDIO && <DatasetStudio />}
         {view === ViewState.MODEL_MANAGEMENT && (
-          <ModelManagement />
+          <>
+            <ModelManagement />
+          </>
         )}
         {view === ViewState.SETTINGS && (
           <SettingsView currentRubric={rubric} onSaveRubric={handleSaveRubric} />

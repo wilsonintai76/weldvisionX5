@@ -1,12 +1,22 @@
 {
-  "name": "rdk-x5-welding-evaluator",
+  "name": "weldvision-x5",
+  "productName": "WeldVision X5",
+  "version": "1.0.0",
+  "description": "AI-Powered Weld Defect Detection and Model Training Platform",
+  "author": "WeldVision Team",
   "private": true,
-  "version": "0.0.0",
+  "main": "electron-main.js",
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "electron": "electron .",
+    "electron-dev": "concurrently \"npm run dev\" \"wait-on http://localhost:3000 && cross-env NODE_ENV=development electron .\"",
+    "electron-build": "npm run build && electron-builder",
+    "pack": "electron-builder --dir",
+    "dist": "electron-builder",
+    "dist:win": "electron-builder --win --x64"
   },
   "dependencies": {
     "react": "^19.2.1",
@@ -18,6 +28,79 @@
     "@types/node": "^22.14.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.8.2",
-    "vite": "^6.2.0"
+    "vite": "^6.2.0",
+    "electron": "^28.0.0",
+    "electron-builder": "^24.9.1",
+    "concurrently": "^8.2.2",
+    "wait-on": "^7.2.0",
+    "cross-env": "^7.0.3"
+  },
+  "build": {
+    "appId": "com.weldvision.x5",
+    "productName": "WeldVision X5",
+    "copyright": "Copyright © 2025 WeldVision",
+    "directories": {
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "dist/**/*",
+      "electron-main.js",
+      "preload.js",
+      "backend/**/*",
+      "!backend/__pycache__/**/*",
+      "!backend/*.pyc",
+      "!backend/venv/**/*",
+      "!backend/.env",
+      "assets/**/*"
+    ],
+    "extraResources": [
+      {
+        "from": "backend",
+        "to": "backend",
+        "filter": ["**/*", "!__pycache__", "!*.pyc", "!venv"]
+      }
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": ["x64"]
+        },
+        {
+          "target": "portable",
+          "arch": ["x64"]
+        }
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "${productName}-Setup-${version}.${ext}",
+      "requestedExecutionLevel": "asInvoker"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "allowElevation": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "WeldVision X5",
+      "installerIcon": "assets/icon.ico",
+      "uninstallerIcon": "assets/icon.ico",
+      "installerHeaderIcon": "assets/icon.ico",
+      "license": "LICENSE",
+      "warningsAsErrors": false
+    },
+    "portable": {
+      "artifactName": "${productName}-Portable-${version}.${ext}"
+    },
+    "mac": {
+      "target": "dmg",
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.developer-tools"
+    },
+    "linux": {
+      "target": ["AppImage", "deb"],
+      "icon": "assets/icon.png",
+      "category": "Development"
+    }
   }
 }

@@ -86,11 +86,11 @@ class HardwareDetector:
             
             if found_markers:
                 self.rdk_x5_available = True
-                msg = f"✅ RDK X5 detected (markers: {', '.join(found_markers)})"
+                msg = f"[OK] RDK X5 detected (markers: {', '.join(found_markers)})"
                 logger.info(msg)
                 self.detection_messages.append(msg)
             else:
-                msg = "⚠️ RDK X5 not detected (running on standard Linux/other platform)"
+                msg = "[WARN] RDK X5 not detected (running on standard Linux/other platform)"
                 logger.warning(msg)
                 self.detection_messages.append(msg)
                 
@@ -110,7 +110,7 @@ class HardwareDetector:
             version = rclpy.__version__ if hasattr(rclpy, '__version__') else 'unknown'
             distro = os.environ.get('ROS_DISTRO', 'unknown')
             
-            msg = f"✅ ROS2 available (rclpy: {version}, distro: {distro})"
+            msg = f"[OK] ROS2 available (rclpy: {version}, distro: {distro})"
             logger.info(msg)
             self.detection_messages.append(msg)
             
@@ -119,7 +119,7 @@ class HardwareDetector:
             logger.debug(f"ROS2 DDS Implementation: {rmw_impl}")
             
         except ImportError:
-            msg = "⚠️ ROS2 not available (rclpy not installed)"
+            msg = "[WARN] ROS2 not available (rclpy not installed)"
             logger.warning(msg)
             self.detection_messages.append(msg)
         except Exception as e:
@@ -155,16 +155,16 @@ class HardwareDetector:
                     if camera_topics:
                         self.rdk_camera_present = True
                         self.camera_available = True
-                        msg = f"✅ RDK Stereo Camera detected (topics: {', '.join(camera_topics)})"
+                        msg = f"[OK] RDK Stereo Camera detected (topics: {', '.join(camera_topics)})"
                         logger.info(msg)
                         self.detection_messages.append(msg)
                     else:
-                        msg = "⚠️ No camera topics found on ROS2"
+                        msg = "[WARN] No camera topics found on ROS2"
                         logger.warning(msg)
                         self.detection_messages.append(msg)
                         
                 except Exception as e:
-                    msg = f"⚠️ ROS2 camera detection failed: {str(e)}"
+                    msg = f"[WARN] ROS2 camera detection failed: {str(e)}"
                     logger.warning(msg)
                     self.detection_messages.append(msg)
             
@@ -178,16 +178,16 @@ class HardwareDetector:
                     ret, frame = cap.read()
                     if ret and frame is not None:
                         h, w = frame.shape[:2]
-                        msg = f"✅ USB Camera detected (resolution: {w}x{h})"
+                        msg = f"[OK] USB Camera detected (resolution: {w}x{h})"
                         logger.info(msg)
                         self.detection_messages.append(msg)
                     else:
-                        msg = "⚠️ Camera detected but cannot capture frames"
+                        msg = "[WARN] Camera detected but cannot capture frames"
                         logger.warning(msg)
                         self.detection_messages.append(msg)
                     cap.release()
                 else:
-                    msg = "⚠️ No camera devices detected"
+                    msg = "[WARN] No camera devices detected"
                     logger.warning(msg)
                     self.detection_messages.append(msg)
                     
@@ -224,7 +224,7 @@ class DatabaseManager:
             # Check if database file exists
             if os.path.exists(file_path):
                 self.db_exists = True
-                msg = f"✅ Database already exists: {file_path}"
+                msg = f"[OK] Database already exists: {file_path}"
                 logger.info(msg)
                 self.init_messages.append(msg)
             else:
@@ -237,7 +237,7 @@ class DatabaseManager:
             session_factory = init_db(self.db_path)
             self.db_ready = True
             
-            msg = "✅ Database initialized and ready"
+            msg = "[OK] Database initialized and ready"
             logger.info(msg)
             self.init_messages.append(msg)
             

@@ -8,11 +8,22 @@ from pathlib import Path
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).parent))
+# Add rdk_weld_evaluator src to path for job routes
+try:
+    project_src_path = Path(__file__).parent.parent / 'rdk_weld_evaluator' / 'src'
+    if project_src_path.exists():
+        sys.path.insert(0, str(project_src_path))
+except Exception:
+    pass
 
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
 from system_check import HardwareDetector, DatabaseManager, setup_logging
+import base64
+import io
+from PIL import Image
+import yaml
 
 # Setup logging
 logger = setup_logging(logging.INFO)
@@ -131,6 +142,14 @@ try:
 except Exception as e:
     logger.warning(f"Model management routes initialization failed: {e}")
 
+# Init Orchestration Job Routes (Train/Compile/Deploy/Inference control)
+try:
+    from api.job_routes import jobs_bp
+    app.register_blueprint(jobs_bp)
+    logger.info("Orchestration job routes registered")
+except Exception as e:
+    logger.warning(f"Job routes initialization failed: {e}")
+
 # ROS2 State
 current_frame = None
 current_depth = None
@@ -210,6 +229,219 @@ if ROS_AVAILABLE and hardware_status['ros2_available']:
     atexit.register(cleanup_camera)
 else:
     logger.warning("Camera thread NOT started - ROS2 or camera not available")
+
+@app.route('/api/dataset/upload', methods=['POST'])
+def dataset_upload():
+    try:
+        data = request.json
+        img_b64 = data.get('imageBase64')
+        image_path = data.get('savePath')  # e.g., D:/data/weldsets/setA/images/img_001.jpg
+        label_path = data.get('labelPath')  # e.g., D:/data/weldsets/setA/labels/img_001.txt
+        labels = data.get('labels', [])  # [{class: 'defect', bbox: [x_center,y_center,w,h]} normalized 0..1]
+        if not img_b64 or not image_path:
+            return jsonify({'error': 'imageBase64 and savePath required'}), 400
+
+        # Decode and save image
+        img_bytes = base64.b64decode(img_b64.split(',')[-1])
+        im = Image.open(io.BytesIO(img_bytes)).convert('RGB')
+        Path(image_path).parent.mkdir(parents=True, exist_ok=True)
+        im.save(image_path)
+
+        # Save YOLO labels only if labelPath provided AND labels exist
+        if label_path is not None and labels:
+            Path(label_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(label_path, 'w', encoding='utf-8') as f:
+                for item in labels:
+                    cls = item.get('class_id', 0)
+                    x, y, w, h = item.get('bbox', [0,0,0,0])
+                    f.write(f"{cls} {x} {y} {w} {h}\n")
+
+        return jsonify({'ok': True, 'imagePath': image_path, 'labelPath': label_path}), 200
+    except Exception as e:
+        logger.error(f"Dataset upload failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dataset/upload_multipart', methods=['POST'])
+def dataset_upload_multipart():
+    try:
+        file = request.files.get('image')
+        image_path = request.form.get('savePath')
+        label_path = request.form.get('labelPath')
+        labels_json = request.form.get('labels')
+        labels = []
+        if labels_json:
+            try:
+                labels = json.loads(labels_json)
+            except Exception:
+                labels = []
+        if not file or not image_path:
+            return jsonify({'error': 'image file and savePath required'}), 400
+        im = Image.open(file.stream).convert('RGB')
+        Path(image_path).parent.mkdir(parents=True, exist_ok=True)
+        im.save(image_path)
+        if label_path is not None and labels:
+            Path(label_path).parent.mkdir(parents=True, exist_ok=True)
+            with open(label_path, 'w', encoding='utf-8') as f:
+                for item in labels:
+                    cls = item.get('class_id', 0)
+                    x, y, w, h = item.get('bbox', [0,0,0,0])
+                    f.write(f"{cls} {x} {y} {w} {h}\n")
+        return jsonify({'ok': True, 'imagePath': image_path, 'labelPath': label_path}), 200
+    except Exception as e:
+        logger.error(f"Dataset multipart upload failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dataset/generate_yaml', methods=['POST'])
+def dataset_generate_yaml():
+    try:
+        data = request.json
+        base_dir = data.get('baseDir')  # e.g., D:/data/weldsets/setA
+        train_rel = data.get('trainRel', 'images')
+        val_rel = data.get('valRel', 'images')
+        names = data.get('names', ['good','porosity','undercut'])
+        if not base_dir:
+            return jsonify({'error': 'baseDir required'}), 400
+        cfg = {
+            'path': base_dir.replace('\\','/'),
+            'train': train_rel,
+            'val': val_rel,
+            'names': names,
+        }
+        out_path = Path(base_dir) / 'dataset.yaml'
+        with open(out_path, 'w', encoding='utf-8') as f:
+            yaml.safe_dump(cfg, f, sort_keys=False)
+        return jsonify({'ok': True, 'yamlPath': str(out_path)}), 200
+    except Exception as e:
+        logger.error(f"Generate YAML failed: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dataset/list', methods=['POST'])
+def list_dataset_files():
+    data = request.get_json()
+    base_path = data.get('base_path')
+    image_subdir = data.get('image_subdir', 'images/train')
+    label_subdir = data.get('label_subdir', 'labels/train')
+    if not base_path:
+        return jsonify({'ok': False, 'error': 'base_path required'}), 400
+    img_dir = os.path.join(base_path, image_subdir)
+    lbl_dir = os.path.join(base_path, label_subdir)
+    images = []
+    labels_missing = []
+    labels = []
+    if os.path.isdir(img_dir):
+        for fname in os.listdir(img_dir):
+            if fname.lower().endswith(('.jpg', '.jpeg', '.png')):
+                stem, _ = os.path.splitext(fname)
+                images.append(fname)
+                lbl_file = os.path.join(lbl_dir, stem + '.txt')
+                if os.path.isfile(lbl_file):
+                    labels.append(stem + '.txt')
+                else:
+                    labels_missing.append(stem + '.txt')
+    return jsonify({
+        'ok': True,
+        'image_dir': img_dir,
+        'label_dir': lbl_dir,
+        'images': images,
+        'labels': labels,
+        'labels_missing': labels_missing
+    })
+
+@app.route('/api/dataset/image/<path:filepath>', methods=['GET'])
+def serve_dataset_image(filepath):
+    """Serve images from the dataset directory"""
+    try:
+        from flask import send_file
+        import os
+        
+        # Security: normalize path to prevent directory traversal
+        filepath = os.path.normpath(filepath)
+        if '..' in filepath:
+            return jsonify({'error': 'Invalid path'}), 400
+        
+        if os.path.exists(filepath) and os.path.isfile(filepath):
+            return send_file(filepath, mimetype='image/jpeg')
+        else:
+            return jsonify({'error': 'Image not found'}), 404
+    except Exception as e:
+        logger.error(f"Error serving image: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dataset/delete', methods=['POST'])
+def dataset_delete_image():
+    """Delete an image and its label file"""
+    try:
+        import os
+        data = request.json
+        image_path = data.get('imagePath')
+        label_path = data.get('labelPath')
+        
+        if not image_path:
+            return jsonify({'error': 'imagePath required'}), 400
+        
+        # Security: normalize paths
+        image_path = os.path.normpath(image_path)
+        if '..' in image_path:
+            return jsonify({'error': 'Invalid path'}), 400
+        
+        # Delete image file
+        if os.path.exists(image_path) and os.path.isfile(image_path):
+            os.remove(image_path)
+            logger.info(f"Deleted image: {image_path}")
+        
+        # Delete label file if exists
+        if label_path:
+            label_path = os.path.normpath(label_path)
+            if '..' not in label_path and os.path.exists(label_path) and os.path.isfile(label_path):
+                os.remove(label_path)
+                logger.info(f"Deleted label: {label_path}")
+        
+        return jsonify({'ok': True, 'message': 'Image deleted'}), 200
+    except Exception as e:
+        logger.error(f"Error deleting image: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/dataset/label/read', methods=['POST'])
+def read_label_file():
+    """Read label file and return its contents"""
+    try:
+        data = request.json or {}
+        label_path = data.get('labelPath', '')
+        
+        if not label_path:
+            return jsonify({'error': 'labelPath required'}), 400
+        
+        label_path = os.path.normpath(label_path)
+        
+        # Security check
+        if '..' in label_path:
+            return jsonify({'error': 'Invalid path'}), 400
+        
+        if not os.path.exists(label_path) or not os.path.isfile(label_path):
+            return jsonify({'error': 'Label file not found'}), 404
+        
+        with open(label_path, 'r') as f:
+            lines = f.readlines()
+        
+        # Parse YOLO format: class_id x_center y_center width height
+        boxes = []
+        for line in lines:
+            line = line.strip()
+            if line:
+                parts = line.split()
+                if len(parts) >= 5:
+                    boxes.append({
+                        'class_id': int(parts[0]),
+                        'x': float(parts[1]),
+                        'y': float(parts[2]),
+                        'w': float(parts[3]),
+                        'h': float(parts[4])
+                    })
+        
+        return jsonify({'ok': True, 'boxes': boxes}), 200
+    except Exception as e:
+        logger.error(f"Error reading label file: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/students', methods=['GET'])
 def list_students():
@@ -530,6 +762,105 @@ def ros2_health():
         return jsonify({'error': str(e), 'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')}), 500
 
 
+# RDK Connection Testing Endpoints
+@app.route('/api/rdk/test-connection', methods=['POST'])
+def test_rdk_connection():
+    """Test if RDK device is reachable via network"""
+    try:
+        data = request.json
+        host = data.get('host', '')
+        user = data.get('user', 'root')
+        
+        if not host:
+            return jsonify({'error': 'Host is required'}), 400
+        
+        logger.info(f"Testing connection to RDK at {host}")
+        
+        # Test 1: Network ping
+        import subprocess
+        import platform
+        
+        # Platform-specific ping command
+        param = '-n' if platform.system().lower() == 'windows' else '-c'
+        ping_cmd = ['ping', param, '1', '-w' if platform.system().lower() == 'windows' else '-W', '1000' if platform.system().lower() == 'windows' else '1', host]
+        
+        try:
+            ping_result = subprocess.run(ping_cmd, capture_output=True, timeout=3)
+            reachable = (ping_result.returncode == 0)
+        except Exception as e:
+            logger.error(f"Ping test failed: {e}")
+            reachable = False
+        
+        # Test 2: SSH connection (if ping succeeds)
+        ssh_available = False
+        if reachable:
+            try:
+                ssh_cmd = ['ssh', '-o', 'ConnectTimeout=3', '-o', 'StrictHostKeyChecking=no', 
+                          '-o', 'BatchMode=yes', f'{user}@{host}', 'echo OK']
+                ssh_result = subprocess.run(ssh_cmd, capture_output=True, timeout=5)
+                ssh_available = (ssh_result.returncode == 0)
+            except Exception as e:
+                logger.error(f"SSH test failed: {e}")
+                ssh_available = False
+        
+        # Test 3: Inference service health check (if SSH works)
+        service_healthy = False
+        if ssh_available:
+            try:
+                import requests
+                response = requests.get(f'http://{host}:8080/health', timeout=3)
+                service_healthy = (response.status_code == 200)
+            except Exception as e:
+                logger.debug(f"Service health check failed: {e}")
+                service_healthy = False
+        
+        # Determine status message
+        if reachable and ssh_available:
+            message = f'RDK is ready at {host}'
+            status = 'connected'
+        elif reachable and not ssh_available:
+            message = f'RDK at {host} is reachable but SSH is not available. Check credentials or SSH service.'
+            status = 'ssh_failed'
+        elif not reachable:
+            message = f'Cannot reach RDK at {host}. Check network connection and IP address.'
+            status = 'unreachable'
+        else:
+            message = f'Unknown connection status for {host}'
+            status = 'unknown'
+        
+        logger.info(f"Connection test result: {status} - {message}")
+        
+        return jsonify({
+            'reachable': reachable,
+            'sshAvailable': ssh_available,
+            'serviceHealthy': service_healthy,
+            'connected': reachable and ssh_available,
+            'status': status,
+            'message': message,
+            'host': host,
+            'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+        }), 200
+        
+    except Exception as e:
+        logger.error(f"RDK connection test failed: {e}")
+        return jsonify({
+            'error': str(e),
+            'connected': False,
+            'message': f'Connection test error: {str(e)}'
+        }), 500
+
+
+@app.route('/api/rdk/status', methods=['GET'])
+def get_rdk_status():
+    """Get current RDK connection status"""
+    # This could be enhanced with cached/persistent status in the future
+    return jsonify({
+        'statusCheckAvailable': True,
+        'message': 'Use POST /api/rdk/test-connection to check RDK connectivity',
+        'timestamp': time.strftime('%Y-%m-%d %H:%M:%S')
+    }), 200
+
+
 if __name__ == '__main__':
     # Get info for startup logging
     db_info = db_manager.get_db_status()
@@ -549,4 +880,9 @@ if __name__ == '__main__':
     logger.info("ROS2 Health: http://localhost:5000/api/ros2/health")
     logger.info("=" * 70)
     
-    app.run(host='0.0.0.0', port=5000, debug=False)
+    try:
+        app.run(host='0.0.0.0', port=5000, debug=False, use_reloader=False, threaded=True)
+    except Exception as e:
+        logger.error(f"Flask server failed to start: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
