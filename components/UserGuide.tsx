@@ -132,29 +132,79 @@ const WelcomeSection: React.FC = () => (
     </div>
 
     <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+      <h3 className="text-lg font-semibold text-white mb-4">🚀 Getting Started (Desktop App)</h3>
+      <p className="text-slate-300 mb-4">WeldMaster AI runs as a desktop application with auto-starting backend:</p>
+      <div className="space-y-3">
+        <div className="bg-slate-700 rounded p-4">
+          <h4 className="font-semibold text-white mb-2">Option 1: Electron Desktop App</h4>
+          <p className="text-slate-300 text-sm mb-2">Run: <code className="bg-slate-800 px-2 py-1 rounded">npm run electron-dev</code></p>
+          <ul className="text-slate-400 text-sm space-y-1 ml-4">
+            <li>• Frontend loads on port 3002 automatically</li>
+            <li>• Backend auto-starts on port 5000</li>
+            <li>• System tray icon for quick access</li>
+            <li>• Single window app experience</li>
+          </ul>
+        </div>
+        
+        <div className="bg-slate-700 rounded p-4">
+          <h4 className="font-semibold text-white mb-2">Option 2: Browser Mode</h4>
+          <p className="text-slate-300 text-sm mb-2">Run: <code className="bg-slate-800 px-2 py-1 rounded">npm start</code></p>
+          <ul className="text-slate-400 text-sm space-y-1 ml-4">
+            <li>• Starts both backend and frontend concurrently</li>
+            <li>• Open browser to <code className="bg-slate-800 px-1 rounded">http://localhost:3002</code></li>
+            <li>• Useful for development and debugging</li>
+          </ul>
+        </div>
+        
+        <div className="bg-slate-700 rounded p-4">
+          <h4 className="font-semibold text-white mb-2">PowerShell Quick Start</h4>
+          <p className="text-slate-300 text-sm mb-2">Double-click: <code className="bg-slate-800 px-2 py-1 rounded">start.ps1</code> or <code className="bg-slate-800 px-2 py-1 rounded">start.bat</code></p>
+          <ul className="text-slate-400 text-sm space-y-1 ml-4">
+            <li>• Backend runs as background job</li>
+            <li>• Frontend opens in current window</li>
+            <li>• Health check verifies backend is ready</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
       <h3 className="text-lg font-semibold text-white mb-4">Quick Start Steps</h3>
       <ol className="space-y-3">
         <li className="flex gap-3">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-industrial-blue text-white text-sm font-bold flex-shrink-0">1</span>
-          <span className="text-slate-300">Set up and connect hardware (Camera & RDK X5)</span>
+          <span className="text-slate-300">Launch the app (Electron or browser mode)</span>
         </li>
         <li className="flex gap-3">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-industrial-blue text-white text-sm font-bold flex-shrink-0">2</span>
-          <span className="text-slate-300">Calibrate the camera for accurate measurements</span>
+          <span className="text-slate-300">Set up hardware (Camera & RDK X5) - optional for dataset work</span>
         </li>
         <li className="flex gap-3">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-industrial-blue text-white text-sm font-bold flex-shrink-0">3</span>
-          <span className="text-slate-300">Create student profiles and select evaluation rubric</span>
+          <span className="text-slate-300">Create datasets in Dataset Studio (upload images or capture)</span>
         </li>
         <li className="flex gap-3">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-industrial-blue text-white text-sm font-bold flex-shrink-0">4</span>
-          <span className="text-slate-300">Position weld under camera and scan</span>
+          <span className="text-slate-300">Label images with bounding boxes for training</span>
         </li>
         <li className="flex gap-3">
           <span className="flex items-center justify-center w-6 h-6 rounded-full bg-industrial-blue text-white text-sm font-bold flex-shrink-0">5</span>
-          <span className="text-slate-300">View results and track student progress</span>
+          <span className="text-slate-300">Train models (requires PyTorch) and deploy to RDK</span>
         </li>
       </ol>
+    </div>
+    
+    <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
+      <div className="flex gap-3">
+        <Lightbulb className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
+        <div>
+          <p className="text-blue-300 text-sm font-semibold mb-1">New User Tip</p>
+          <p className="text-blue-200 text-sm">
+            Start with Dataset Studio to create labeled training data. 
+            You can work without RDK hardware - just upload images and label them!
+          </p>
+        </div>
+      </div>
     </div>
   </div>
 );
@@ -616,9 +666,16 @@ const AITrainingSection: React.FC = () => (
     <div className="bg-gradient-to-r from-industrial-blue/10 to-industrial-success/10 border border-industrial-blue/20 rounded-lg p-6">
       <h2 className="text-2xl font-bold text-white mb-4">AI & Training Features</h2>
       <p className="text-slate-300 mb-4">
-        WeldMaster AI includes advanced machine learning capabilities for real-time inference monitoring and custom model training.
+        WeldMaster AI includes advanced machine learning capabilities for dataset creation, model training, and real-time inference monitoring.
       </p>
       <div className="grid grid-cols-2 gap-4 mt-4">
+        <div className="flex items-start gap-3">
+          <HardDrive className="w-5 h-5 text-industrial-blue mt-1 flex-shrink-0" />
+          <div>
+            <h4 className="font-semibold text-white">Dataset Studio</h4>
+            <p className="text-sm text-slate-400">Capture & label training data</p>
+          </div>
+        </div>
         <div className="flex items-start gap-3">
           <Brain className="w-5 h-5 text-industrial-blue mt-1 flex-shrink-0" />
           <div>
@@ -640,24 +697,97 @@ const AITrainingSection: React.FC = () => (
             <p className="text-sm text-slate-400">Deploy & compare models</p>
           </div>
         </div>
-        <div className="flex items-start gap-3">
-          <CheckCircle2 className="w-5 h-5 text-industrial-success mt-1 flex-shrink-0" />
-          <div>
-            <h4 className="font-semibold text-white">Performance Analysis</h4>
-            <p className="text-sm text-slate-400">Accuracy & metrics</p>
-          </div>
-        </div>
       </div>
     </div>
 
     <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-      <h3 className="text-lg font-semibold text-white mb-4">Inference Monitor</h3>
-      <p className="text-slate-300 mb-4">Monitor AI predictions in real-time as you scan welds:</p>
+      <h3 className="text-lg font-semibold text-white mb-4">📁 Dataset Studio (NEW)</h3>
+      <p className="text-slate-300 mb-4">Create and manage labeled datasets with an intuitive tabbed interface:</p>
+      
+      <div className="space-y-4">
+        <div className="bg-slate-700 rounded p-4">
+          <h4 className="font-semibold text-white mb-2 flex items-center gap-2">
+            📷 Data Capture Tab
+          </h4>
+          <ul className="text-slate-300 text-sm space-y-1 ml-6">
+            <li>• Capture images from RDK stereo camera in real-time</li>
+            <li>• <strong>Upload images</strong> from your computer (JPG, JPEG, PNG)</li>
+            <li>• View status cards: Total/Labeled/Unlabeled counts</li>
+            <li>• Unified image list with status indicators (🟢 labeled, 🟠 unlabeled)</li>
+            <li>• Delete unwanted images with one click</li>
+          </ul>
+        </div>
+
+        <div className="bg-slate-700 rounded p-4">
+          <h4 className="font-semibold text-white mb-2 flex items-center gap-2">
+            🏷️ Data Labeler Tab
+          </h4>
+          <ul className="text-slate-300 text-sm space-y-1 ml-6">
+            <li>• Draw bounding boxes around defects (good, porosity, undercut, spatter)</li>
+            <li>• <strong>Auto-load existing labels</strong> when clicking labeled images for editing</li>
+            <li>• <strong>"Clear Boxes"</strong> button to reset drawing</li>
+            <li>• <strong>"Delete Label"</strong> button to re-classify images</li>
+            <li>• Save labels in YOLO format (normalized coordinates)</li>
+            <li>• Visual feedback with class names on bounding boxes</li>
+            <li>• All images shown in one unified list (no separate sections)</li>
+          </ul>
+        </div>
+
+        <div className="bg-slate-700 rounded p-4">
+          <h4 className="font-semibold text-white mb-2 flex items-center gap-2">
+            ⚙️ Settings Tab
+          </h4>
+          <ul className="text-slate-300 text-sm space-y-1 ml-6">
+            <li>• Configure dataset directory (default: D:/data/weldsets/setA)</li>
+            <li>• Auto-sync with Orchestration Panel (enabled by default)</li>
+            <li>• Manual dataset scan and refresh</li>
+            <li>• Quick actions: Open folder, Generate dataset.yaml</li>
+          </ul>
+        </div>
+      </div>
+      
+      <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4 mt-4">
+        <p className="text-blue-300 text-sm">
+          <strong>Tip:</strong> Changes sync between Data Capture and Data Labeler automatically. 
+          Click "Refresh Dataset" in settings if you add files externally.
+        </p>
+      </div>
+    </div>
+
+    <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
+      <h3 className="text-lg font-semibold text-white mb-4">🧠 Inference Monitor</h3>
+      <p className="text-slate-300 mb-4">Monitor AI predictions in real-time on the RDK device:</p>
       <ul className="space-y-3 text-slate-300">
         <li className="flex gap-3">
           <span className="text-industrial-blue font-bold">•</span>
-          <span><span className="font-semibold">View Live Predictions:</span> See AI confidence scores as you scan</span>
+          <span><span className="font-semibold">Start/Stop Inference:</span> Control AI inference on RDK X5</span>
         </li>
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">Desktop Refinement:</span> Enable hybrid mode for uncertain predictions</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">Live Predictions:</span> See AI confidence scores in real-time</span>
+        </li>
+        <li className="flex gap-3">
+          <span className="text-industrial-blue font-bold">•</span>
+          <span><span className="font-semibold">Resource Monitoring:</span> View memory, FPS, and latency</span>
+        </li>
+      </ul>
+      
+      <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-4 mt-4">
+        <div className="flex gap-3">
+          <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+          <div>
+            <p className="text-yellow-300 text-sm font-semibold mb-1">Requirements</p>
+            <p className="text-yellow-200 text-sm">
+              Inference requires PyTorch installed. Run: <code className="bg-slate-800 px-2 py-0.5 rounded">pip install torch torchvision ultralytics</code>
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
         <li className="flex gap-3">
           <span className="text-industrial-blue font-bold">•</span>
           <span><span className="font-semibold">Detection Methods:</span> Understand which features are being detected</span>

@@ -1,7 +1,0 @@
-{
-  "name": "RDK X5 Welding Evaluator",
-  "description": "Frontend interface for the Horizon Robotics RDK X5 Welding Evaluation System. visualizing welding metrics, defect detection, and student grading against a standardized rubric.",
-  "requestFramePermissions": [
-    "camera"
-  ]
-}

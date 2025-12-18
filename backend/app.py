@@ -861,6 +861,57 @@ def get_rdk_status():
     }), 200
 
 
+# Inference Control Endpoints (Stub implementations - requires torch/model modules)
+@app.route('/api/inference/start', methods=['POST'])
+def start_inference_endpoint():
+    """Start inference on RDK device (stub - requires PyTorch)"""
+    try:
+        data = request.json
+        rdk_ip = data.get('rdkIp', '')
+        user = data.get('user', 'root')
+        model_bin = data.get('modelBin', '')
+        script_path = data.get('scriptPath', '')
+        
+        logger.warning("Inference start requested but PyTorch is not installed")
+        logger.info(f"Inference request: RDK={rdk_ip}, User={user}, Model={model_bin}")
+        
+        return jsonify({
+            'error': 'Inference module not available',
+            'message': 'PyTorch is required for inference. Install with: pip install torch torchvision',
+            'details': 'The inference routes failed to initialize because torch module is missing.',
+            'requested_params': {
+                'rdkIp': rdk_ip,
+                'user': user,
+                'modelBin': model_bin,
+                'scriptPath': script_path
+            }
+        }), 501  # 501 Not Implemented
+    except Exception as e:
+        logger.error(f"Error in inference start stub: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/api/inference/stop', methods=['POST'])
+def stop_inference_endpoint():
+    """Stop inference on RDK device (stub - requires PyTorch)"""
+    try:
+        data = request.json
+        rdk_ip = data.get('rdkIp', '')
+        user = data.get('user', 'root')
+        
+        logger.warning("Inference stop requested but PyTorch is not installed")
+        logger.info(f"Stop inference request: RDK={rdk_ip}, User={user}")
+        
+        return jsonify({
+            'error': 'Inference module not available',
+            'message': 'PyTorch is required for inference. Install with: pip install torch torchvision',
+            'details': 'The inference routes failed to initialize because torch module is missing.'
+        }), 501  # 501 Not Implemented
+    except Exception as e:
+        logger.error(f"Error in inference stop stub: {e}")
+        return jsonify({'error': str(e)}), 500
+
+
 if __name__ == '__main__':
     # Get info for startup logging
     db_info = db_manager.get_db_status()

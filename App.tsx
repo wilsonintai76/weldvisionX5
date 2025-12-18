@@ -1641,6 +1641,11 @@ const App: React.FC = () => {
   const [rubric, setRubric] = useState<RubricConfig>(RUBRIC_PRESETS['Standard']);
   const [loading, setLoading] = useState(true);
   const [guideOpen, setGuideOpen] = useState(false);
+  
+  // Inference Monitor State
+  const [inferenceRunning, setInferenceRunning] = useState(false);
+  const [latestInferenceResult, setLatestInferenceResult] = useState<any>(null);
+  const [desktopConnected, setDesktopConnected] = useState(false);
 
   // Initial Data Load
   useEffect(() => {
@@ -1702,6 +1707,68 @@ const App: React.FC = () => {
     } catch (e) {
       console.error("Failed to save rubric", e);
     }
+  };
+
+  // Inference Monitor Handlers
+  const handleStartInference = async () => {
+    try {
+      setInferenceRunning(true);
+      // Use Orchestration Panel settings from localStorage
+      const settings = JSON.parse(localStorage.getItem('orchestrationSettings') || '{}');
+      const deviceHost = settings.deviceHost || 'rdk-x5.local';
+      const deviceUser = settings.deviceUser || 'root';
+      const modelBin = settings.outputDir ? `${settings.outputDir}\\model.bin` : '';
+      
+      const result = await fetch('/api/inference/start', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rdkIp: deviceHost, user: deviceUser, modelBin })
+      });
+      
+      const data = await result.json();
+      
+      if (result.status === 501) {
+        // Not implemented - show helpful error
+        alert(`Inference Not Available\n\n${data.message}\n\nDetails: ${data.details}`);
+        setInferenceRunning(false);
+      } else if (!result.ok) {
+        throw new Error(data.error || 'Failed to start inference');
+      }
+    } catch (error: any) {
+      console.error('Failed to start inference:', error);
+      alert(`Failed to start inference: ${error.message}`);
+      setInferenceRunning(false);
+    }
+  };
+
+  const handleStopInference = async () => {
+    try {
+      const settings = JSON.parse(localStorage.getItem('orchestrationSettings') || '{}');
+      const deviceHost = settings.deviceHost || 'rdk-x5.local';
+      const deviceUser = settings.deviceUser || 'root';
+      
+      const result = await fetch('/api/inference/stop', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ rdkIp: deviceHost, user: deviceUser })
+      });
+      
+      if (!result.ok) {
+        const data = await result.json();
+        throw new Error(data.error || 'Failed to stop inference');
+      }
+      
+      setInferenceRunning(false);
+      setLatestInferenceResult(null);
+    } catch (error: any) {
+      console.error('Failed to stop inference:', error);
+      alert(`Failed to stop inference: ${error.message}`);
+    }
+  };
+
+  const handleToggleDesktop = (enable: boolean) => {
+    setDesktopConnected(enable);
+    console.log('Desktop refinement:', enable ? 'enabled' : 'disabled');
   };
 
   if (loading) {
@@ -1908,7 +1975,14 @@ const App: React.FC = () => {
           <StereoCameraCalibration />
         )}
         {view === ViewState.INFERENCE_MONITOR && (
-          <InferenceMonitor />
+          <InferenceMonitor 
+            latestResult={latestInferenceResult}
+            isRunning={inferenceRunning}
+            onStart={handleStartInference}
+            onStop={handleStopInference}
+            desktopConnected={desktopConnected}
+            onToggleDesktop={handleToggleDesktop}
+          />
         )}
         {view === ViewState.TRAINING_DASHBOARD && (
           <>

@@ -9,7 +9,9 @@ let tray;
 
 // Backend server configuration
 const BACKEND_PORT = 5000;
-const FRONTEND_URL = 'http://localhost:3000';
+const FRONTEND_URL = process.env.NODE_ENV === 'development' 
+  ? 'http://localhost:3002' // Development uses Vite on 3002
+  : `file://${path.join(__dirname, 'dist', 'index.html')}`; // Production uses built files
 
 function createWindow() {
   // Create the browser window
