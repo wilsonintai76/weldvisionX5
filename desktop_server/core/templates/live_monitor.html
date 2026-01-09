@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>WeldMaster - Live Monitor</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; background-color: #f4f4f4; }
+        .container { max-width: 1200px; margin: 0 auto; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .video-container { text-align: center; margin-bottom: 20px; }
+        .controls { text-align: center; margin-top: 10px; }
+        img.stream { width: 100%; max-width: 800px; border: 2px solid #333; border-radius: 4px; }
+        .status-box { background: #e8f4fd; padding: 15px; border-radius: 4px; margin-top: 20px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎥 RDK X5 Side-Channel Live View</h1>
+        
+        <div class="video-container">
+            <!-- 
+                Side-Channel Magic:
+                The Django page loads from localhost:8000
+                The Image loads directly from localhost:5001 (The RDK Agent)
+            -->
+            <img src="http://127.0.0.1:5001/video_feed" class="stream" alt="Waiting for RDK Stream..." id="videoStream">
+        </div>
+
+        <div class="controls">
+            <label for="rdk_ip">RDK IP Address:</label>
+            <input type="text" id="rdk_ip" value="127.0.0.1" placeholder="192.168.1.100">
+            <button onclick="updateStream()">Connect Stream</button>
+        </div>
+
+        <div class="status-box">
+            <h3>System Status</h3>
+            <p><strong>Architecture:</strong> Hybrid Side-Channel</p>
+            <p><strong>Manager:</strong> Django (Port 8000)</p>
+            <p><strong>Broadcaster:</strong> RDK Agent (Port 5001)</p>
+        </div>
+    </div>
+
+    <script>
+        function updateStream() {
+            var ip = document.getElementById('rdk_ip').value;
+            var img = document.getElementById('videoStream');
+            // Allow user to change IP if RDK is on network
+            img.src = "http://" + ip + ":5001/video_feed";
+        }
+    </script>
+</body>
+</html>

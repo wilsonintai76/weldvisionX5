@@ -1,60 +1,63 @@
-# Frontend-Backend Connection Setup
+# Desktop Setup Guide
 
 ## Overview
-The WeldMaster AI Evaluation system now has a fully integrated frontend-backend architecture:
+WeldMaster AI desktop development environment:
 
-- **Frontend**: React + TypeScript (Vite) on `http://localhost:5173`
-- **Backend**: Flask API on `http://localhost:5000`
-- **Connection**: Real HTTP API calls (no mock data)
+- **Django Brain**: `http://localhost:8000` - API server, database, task queue
+- **React UI**: `http://localhost:3002` - Frontend interface
+- **Python venv**: `desktop_server/.venv/` - Isolated Python environment
 
 ---
 
-## Quick Start
+## Quick Setup
 
 ### Prerequisites
-- Node.js 18+ (for frontend)
-- Python 3.8+ (for backend)
+- **Node.js 18+**
+- **Python 3.10+**
 
-### 1. Backend Setup
+### One-Command Start
 
 ```bash
-# Navigate to backend directory
-cd backend
-
-# Create virtual environment
-python -m venv venv
-
-# Activate virtual environment
-# On Windows:
-venv\Scripts\activate
-# On macOS/Linux:
-source venv/bin/activate
-
-# Install dependencies
-pip install -r requirements.txt
-
-# Run backend server
-python app.py
+npm install
+npm run start
 ```
 
-Backend will start on: **http://localhost:5000**
+This starts both Django and React concurrently.
 
-Health check endpoint: `GET http://localhost:5000/api/health`
+---
 
-### 2. Frontend Setup
+## Manual Setup (If Needed)
+
+### 1. Django Backend
 
 ```bash
-# Navigate to project root (in new terminal)
-cd d:\WeldMaster AI Evaluation
+cd desktop_server
 
-# Install dependencies
+# Python environment already exists at .venv/
+# If you need to recreate it:
+python -m venv .venv
+.venv\Scripts\activate
+pip install -r requirements.txt
+
+# Run migrations
+.venv\Scripts\python manage.py migrate
+
+# Start server
+.venv\Scripts\python manage.py runserver 0.0.0.0:8000
+```
+
+**Backend runs on:** `http://localhost:8000`  
+**Health check:** `GET http://localhost:8000/api/health`
+
+### 2. React Frontend
+
+```bash
+# From project root
 npm install
-
-# Run development server
 npm run dev
 ```
 
-Frontend will start on: **http://localhost:5173**
+**Frontend runs on:** `http://localhost:3002`
 
 ---
 
@@ -103,7 +106,7 @@ This URL is used by the frontend to communicate with the backend.
 
 1. Verify backend is running:
    ```bash
-   curl http://localhost:5000/api/health
+  curl http://localhost:8000/api/health
    ```
 
 2. Check `VITE_API_URL` in `.env`:
@@ -220,7 +223,7 @@ d:\WeldMaster AI Evaluation\
 
 ### 1. Test Backend Health
 ```bash
-curl http://localhost:5000/api/health
+curl http://localhost:8000/api/health
 ```
 
 Expected response:

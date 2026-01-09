@@ -21,7 +21,7 @@ interface GuideProps {
   onClose: () => void;
 }
 
-type GuideSection = 'welcome' | 'hardware' | 'calibration' | 'scanning' | 'ai' | 'troubleshooting' | 'tips';
+type GuideSection = 'welcome' | 'hardware' | 'calibration' | 'scanning' | 'rdk' | 'ai' | 'troubleshooting' | 'tips';
 
 const UserGuide: React.FC<GuideProps> = ({ isOpen, onClose }) => {
   const [activeSection, setActiveSection] = useState<GuideSection>('welcome');
@@ -29,6 +29,7 @@ const UserGuide: React.FC<GuideProps> = ({ isOpen, onClose }) => {
   const sections: Record<GuideSection, { title: string; icon: React.ElementType }> = {
     welcome: { title: 'Welcome', icon: BookOpen },
     hardware: { title: 'Hardware Setup', icon: Cable },
+    rdk: { title: 'RDK Control Center', icon: Zap },
     calibration: { title: 'Camera Calibration', icon: Ruler },
     scanning: { title: 'Running Scans', icon: Camera },
     ai: { title: 'AI & Training', icon: Brain },
@@ -64,11 +65,10 @@ const UserGuide: React.FC<GuideProps> = ({ isOpen, onClose }) => {
               <button
                 key={key}
                 onClick={() => setActiveSection(key as GuideSection)}
-                className={`w-full flex items-center gap-3 px-4 py-4 text-left transition-colors border-l-4 ${
-                  activeSection === key
-                    ? 'bg-slate-700 border-industrial-blue text-white'
-                    : 'border-transparent text-slate-400 hover:bg-slate-700 hover:text-white'
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-4 text-left transition-colors border-l-4 ${activeSection === key
+                  ? 'bg-slate-700 border-industrial-blue text-white'
+                  : 'border-transparent text-slate-400 hover:bg-slate-700 hover:text-white'
+                  }`}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
                 <span className="font-medium">{title}</span>
@@ -80,6 +80,7 @@ const UserGuide: React.FC<GuideProps> = ({ isOpen, onClose }) => {
           <div className="flex-1 overflow-y-auto p-8">
             {activeSection === 'welcome' && <WelcomeSection />}
             {activeSection === 'hardware' && <HardwareSection />}
+            {activeSection === 'rdk' && <RDKControlSection />}
             {activeSection === 'calibration' && <CalibrationSection />}
             {activeSection === 'scanning' && <ScanningSection />}
             {activeSection === 'ai' && <AITrainingSection />}
@@ -132,37 +133,26 @@ const WelcomeSection: React.FC = () => (
     </div>
 
     <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
-      <h3 className="text-lg font-semibold text-white mb-4">🚀 Getting Started (Desktop App)</h3>
-      <p className="text-slate-300 mb-4">WeldMaster AI runs as a desktop application with auto-starting backend:</p>
+      <h3 className="text-lg font-semibold text-white mb-4">🚀 Getting Started</h3>
+      <p className="text-slate-300 mb-4">WeldMaster AI runs as a local web application powered by a Django backend.</p>
       <div className="space-y-3">
         <div className="bg-slate-700 rounded p-4">
-          <h4 className="font-semibold text-white mb-2">Option 1: Electron Desktop App</h4>
-          <p className="text-slate-300 text-sm mb-2">Run: <code className="bg-slate-800 px-2 py-1 rounded">npm run electron-dev</code></p>
+          <h4 className="font-semibold text-white mb-2">Standard Launch</h4>
+          <p className="text-slate-300 text-sm mb-2">Double-click: <code className="bg-slate-800 px-2 py-1 rounded text-industrial-blue">start_system.bat</code></p>
           <ul className="text-slate-400 text-sm space-y-1 ml-4">
-            <li>• Frontend loads on port 3002 automatically</li>
-            <li>• Backend auto-starts on port 5000</li>
-            <li>• System tray icon for quick access</li>
-            <li>• Single window app experience</li>
+            <li>• Auto-starts the Django "Brain" (Port 8000)</li>
+            <li>• Launches the Interactive Frontend (Port 3002)</li>
+            <li>• Opens your default web browser automatically</li>
           </ul>
         </div>
-        
+
         <div className="bg-slate-700 rounded p-4">
-          <h4 className="font-semibold text-white mb-2">Option 2: Browser Mode</h4>
-          <p className="text-slate-300 text-sm mb-2">Run: <code className="bg-slate-800 px-2 py-1 rounded">npm start</code></p>
+          <h4 className="font-semibold text-white mb-2">RDK Integration</h4>
+          <p className="text-slate-300 text-sm mb-2">The system talks directly to your RDK X5:</p>
           <ul className="text-slate-400 text-sm space-y-1 ml-4">
-            <li>• Starts both backend and frontend concurrently</li>
-            <li>• Open browser to <code className="bg-slate-800 px-1 rounded">http://localhost:3002</code></li>
-            <li>• Useful for development and debugging</li>
-          </ul>
-        </div>
-        
-        <div className="bg-slate-700 rounded p-4">
-          <h4 className="font-semibold text-white mb-2">PowerShell Quick Start</h4>
-          <p className="text-slate-300 text-sm mb-2">Double-click: <code className="bg-slate-800 px-2 py-1 rounded">start.ps1</code> or <code className="bg-slate-800 px-2 py-1 rounded">start.bat</code></p>
-          <ul className="text-slate-400 text-sm space-y-1 ml-4">
-            <li>• Backend runs as background job</li>
-            <li>• Frontend opens in current window</li>
-            <li>• Health check verifies backend is ready</li>
+            <li>• <strong>Control:</strong> Start/Stop scanning from the "RDK Control" tab</li>
+            <li>• <strong>Video:</strong> Low-latency MJPEG stream via side-channel</li>
+            <li>• <strong>Data:</strong> Results are uploaded to the desktop automatically</li>
           </ul>
         </div>
       </div>
@@ -193,14 +183,14 @@ const WelcomeSection: React.FC = () => (
         </li>
       </ol>
     </div>
-    
+
     <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4">
       <div className="flex gap-3">
         <Lightbulb className="w-5 h-5 text-blue-400 flex-shrink-0 mt-0.5" />
         <div>
           <p className="text-blue-300 text-sm font-semibold mb-1">New User Tip</p>
           <p className="text-blue-200 text-sm">
-            Start with Dataset Studio to create labeled training data. 
+            Start with Dataset Studio to create labeled training data.
             You can work without RDK hardware - just upload images and label them!
           </p>
         </div>
@@ -703,7 +693,7 @@ const AITrainingSection: React.FC = () => (
     <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">
       <h3 className="text-lg font-semibold text-white mb-4">📁 Dataset Studio (NEW)</h3>
       <p className="text-slate-300 mb-4">Create and manage labeled datasets with an intuitive tabbed interface:</p>
-      
+
       <div className="space-y-4">
         <div className="bg-slate-700 rounded p-4">
           <h4 className="font-semibold text-white mb-2 flex items-center gap-2">
@@ -745,10 +735,10 @@ const AITrainingSection: React.FC = () => (
           </ul>
         </div>
       </div>
-      
+
       <div className="bg-blue-900/20 border border-blue-700/50 rounded-lg p-4 mt-4">
         <p className="text-blue-300 text-sm">
-          <strong>Tip:</strong> Changes sync between Data Capture and Data Labeler automatically. 
+          <strong>Tip:</strong> Changes sync between Data Capture and Data Labeler automatically.
           Click "Refresh Dataset" in settings if you add files externally.
         </p>
       </div>
@@ -775,7 +765,7 @@ const AITrainingSection: React.FC = () => (
           <span><span className="font-semibold">Resource Monitoring:</span> View memory, FPS, and latency</span>
         </li>
       </ul>
-      
+
       <div className="bg-yellow-900/20 border border-yellow-700/50 rounded-lg p-4 mt-4">
         <div className="flex gap-3">
           <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
@@ -787,20 +777,6 @@ const AITrainingSection: React.FC = () => (
           </div>
         </div>
       </div>
-    </div>
-        <li className="flex gap-3">
-          <span className="text-industrial-blue font-bold">•</span>
-          <span><span className="font-semibold">Detection Methods:</span> Understand which features are being detected</span>
-        </li>
-        <li className="flex gap-3">
-          <span className="text-industrial-blue font-bold">•</span>
-          <span><span className="font-semibold">Confidence Thresholds:</span> Adjust sensitivity for your needs</span>
-        </li>
-        <li className="flex gap-3">
-          <span className="text-industrial-blue font-bold">•</span>
-          <span><span className="font-semibold">Performance Metrics:</span> Track detection accuracy over time</span>
-        </li>
-      </ul>
     </div>
 
     <div className="bg-slate-800 rounded-lg p-6 border border-slate-700">

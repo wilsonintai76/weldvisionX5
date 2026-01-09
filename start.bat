@@ -1,16 +1,8 @@
 @echo off
-echo Starting WeldVision X5...
+echo Starting WeldVision X5 (Django Brain + React UI)...
 echo.
 
-:: Start Backend in new window
-echo Starting Backend Server...
-start "WeldVision Backend" /min cmd /k "cd /d D:\WeldMaster AI Evaluation\backend && python app.py"
-
-:: Wait for backend to initialize
-timeout /t 4 /nobreak > nul
-
-:: Start Frontend in current window
-echo Starting Frontend...
-npm run dev
+cd /d "%~dp0"
+npm run start
 
 pause

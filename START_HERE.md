@@ -1,103 +1,54 @@
-# START HERE - Desktop Model Training
+# WeldMaster AI - Start Here
 
-## Your Question
-> "For train defect image it done in desktop so that we not burden rdk. Any suggestion how we do it?"
+## Current Setup: Desktop Development
 
-## Answer: YES ✅
+**Django Brain + React UI** for desktop-based development and model training.
 
-**Complete solution delivered with 6 documentation files.**
+### Quick Start
 
----
-
-## Read These Files (In This Order)
-
-### 1️⃣ **This Week (Decision Making)**
-
-📄 **SOLUTION_SUMMARY.md** (10 min)
-- Complete overview
-- What you're getting
-- Timeline & results
-
-📄 **DESKTOP_TRAINING_EXECUTIVE_SUMMARY.md** (15 min)
-- Business case
-- 4-week plan
-- Risk assessment (LOW)
-- ROI analysis
-
-**Decision:** Proceed? → Go to next section
-
----
-
-### 2️⃣ **Next Week (Start Implementing)**
-
-📄 **GETTING_STARTED_DESKTOP_TRAINING.md** (2-3 hours)
-- Week 1 implementation
-- Ready-to-use code
-- Copy/paste examples
-- testing guide
-
-**What you'll create:**
-- `backend/api/training_routes.py` (200 lines - included)
-- `components/DataCollector.tsx` (120 lines - included)
-- Deploy to RDK
-- Start collecting images
-
----
-
-### 3️⃣ **Week 2 (Reference Material)**
-
-📄 **DESKTOP_TRAINING_QUICK_GUIDE.md** (5 min)
-- Quick lookup
-- Architecture diagram
-- Dataset format
-- Deployment checklist
-
-📄 **DESKTOP_TRAINING_VISUAL_SUMMARY.md** (20 min)
-- Flowcharts and diagrams
-- Performance metrics
-- 4-week checklist
-- ROI analysis
-
-📄 **DESKTOP_MODEL_TRAINING_STRATEGY.md** (1-2 hours)
-- Complete technical guide
-- Phase 2: PyTorch training code
-- Phase 3: ONNX inference code
-- Detailed architecture
-
----
-
-### 4️⃣ **Navigation**
-
-📄 **DESKTOP_TRAINING_DOCUMENTATION_INDEX.md**
-- Master index
-- Cross-references
-- FAQ answers
-- Learning resources
-
----
-
-## The 3-Phase Plan
-
-```
-Phase 1 (Week 1)      Phase 2 (Week 2)       Phase 3 (Week 3)
-Data Collection       Training on Desktop    Deploy to RDK
-────────────────      ──────────────────     ────────────────
-Setup API (2h)        Install PyTorch (1h)   Create inference (1h)
-Setup UI (2h)         Collect data (var)     Deploy model (30m)
-Collect images (30m)  Train model (2-4h)     Test live (1h)
-                      Export ONNX (5m)       Monitor (ongoing)
+```bash
+npm install      # First time only
+npm run start    # Start Django + React
 ```
 
+Open `http://localhost:3002` in your browser.
+
 ---
 
-## 🎯 Results You'll Get
+## What's Working Now
 
-| Metric | Before | After | Gain |
-|--------|--------|-------|------|
-| **Accuracy** | 60-70% | 90-95% | +25-35% 🎉 |
-| **RDK CPU** | 25% | 15% | -10% ⚡ |
-| **Speed** | 50ms | 25ms | 2x faster ⚡ |
-| **Training** | ∞ RDK | 2-4h desktop | 10x faster 🚀 |
+✅ **Desktop Interface**
+- Student management
+- Scan history (200+ records in DB)
+- Rubric configuration
+- Dataset organization
+
+✅ **Architecture**
+- Django REST API (`localhost:8000`)
+- React frontend (`localhost:3002`)
+- SQLite database
+- Side-channel ready for RDK
+
+---
+
+## Next Steps
+
+### 1. Desktop Model Training (When Ready)
+- Collect weld images on desktop/RDK
+- Train PyTorch models on desktop
+- Export ONNX for RDK deployment
+
+**See:** [DESKTOP_MODEL_TRAINING_STRATEGY.md](DESKTOP_MODEL_TRAINING_STRATEGY.md)
+
+### 2. RDK Integration (Future)
+- Configure RDK IP in Settings
+- Stream live video via side-channel
+- Run inference on RDK edge
+- Persist results in Django
+
+**See:** [RDK_STEREO_CAMERA_SPEC.md](RDK_STEREO_CAMERA_SPEC.md)
+
+---
 
 ---
 

@@ -1,13 +1,13 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { 
-  LayoutDashboard, 
-  ScanLine, 
-  Users, 
-  History, 
-  Camera, 
-  Activity, 
-  Zap, 
-  CheckCircle2, 
+﻿import React, { useState, useEffect, useCallback, useRef } from 'react';
+import {
+  LayoutDashboard,
+  ScanLine,
+  Users,
+  History,
+  Camera,
+  Activity,
+  Zap,
+  CheckCircle2,
   AlertOctagon,
   ChevronRight,
   Plus,
@@ -32,23 +32,151 @@ import {
   Brain,
   BarChart3,
   Database,
-  Network
+  Network,
+  Cpu,
+  GraduationCap
 } from 'lucide-react';
-import { 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
-  CartesianGrid, 
-  Tooltip, 
-  ResponsiveContainer, 
-  LineChart, 
-  Line 
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  LineChart,
+  Line
 } from 'recharts';
 
-import { Student, ScanResult, ViewState, WeldingMetrics, RubricConfig, RigType } from './types';
+import { Student, ScanResult, ViewState, WeldingMetrics, RubricConfig, RigType, Class } from './types';
 import { RUBRIC_PRESETS, CAMERA_FEED_PLACEHOLDER } from './constants';
-import { fetchStudents, fetchHistory, triggerScan, addStudent, updateStudent, deleteStudent, triggerCalibration, saveCalibration, getRubric, saveRubric } from './services/apiService';
+import { ClassManagement } from './components/ClassManagement';
+
+import { fetchStudents, fetchHistory, fetchClasses, addClass, updateClass, deleteClass, triggerScan, addStudent, updateStudent, deleteStudent, triggerCalibration, saveCalibration, getRubric, saveRubric, startRDKScan, stopRDKScan, getRDKStatus } from './services/apiService';
+
+const RDKControlView = () => {
+  const [status, setStatus] = useState<'idle' | 'scanning'>('idle');
+  const [logs, setLogs] = useState<string[]>([]);
+  const [rdkHost, setRdkHost] = useState<string>('rdk-x5.local');
+  const [rdkPort, setRdkPort] = useState<number>(5001);
+
+  const addLog = (msg: string) => setLogs(p => [`[${new Date().toLocaleTimeString()}] ${msg}`, ...p].slice(0, 10));
+
+  const loadRdkSettings = useCallback(() => {
+    try {
+      const saved = JSON.parse(localStorage.getItem('orchestrationSettings') || '{}');
+      setRdkHost(saved.deviceHost || 'rdk-x5.local');
+      setRdkPort(Number(saved.streamPort || 5001));
+    } catch {
+      setRdkHost('rdk-x5.local');
+      setRdkPort(5001);
+    }
+  }, []);
+
+  useEffect(() => {
+    loadRdkSettings();
+
+    const handleStorage = (e: StorageEvent) => {
+      if (e.key === 'orchestrationSettings') {
+        loadRdkSettings();
+      }
+    };
+
+    window.addEventListener('storage', handleStorage);
+    return () => window.removeEventListener('storage', handleStorage);
+  }, [loadRdkSettings]);
+
+  useEffect(() => {
+    // Poll status
+    const interval = setInterval(async () => {
+      try {
+        const res = await getRDKStatus();
+        setStatus(res.status);
+      } catch (e) {
+        setStatus('idle');
+      }
+    }, 2000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const handleStart = async () => {
+    try {
+      await startRDKScan();
+      addLog("Sent START command to RDK");
+      setStatus('scanning');
+    } catch (e) {
+      addLog("Failed to start scan");
+    }
+  };
+
+  const handleStop = async () => {
+    try {
+      await stopRDKScan();
+      addLog("Sent STOP command to RDK");
+      setStatus('idle');
+    } catch (e) {
+      addLog("Failed to stop scan");
+    }
+  };
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-6 h-full">
+      <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl flex flex-col">
+        <h2 className="text-2xl font-bold text-white mb-4">RDK Live Control</h2>
+
+        <div className="relative aspect-video bg-black rounded-lg overflow-hidden border-2 border-slate-600 mb-6">
+          <img
+            src={`http://${rdkHost}:${rdkPort}/video_feed`}
+            alt="RDK Stream"
+            className="w-full h-full object-cover"
+            onError={(e) => (e.currentTarget.style.display = 'none')}
+          />
+          <div className="absolute top-2 right-2 px-2 py-1 bg-black/50 text-white text-xs rounded">
+            Side-Channel: {rdkHost}:{rdkPort}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <button
+            onClick={handleStart}
+            disabled={status === 'scanning'}
+            className={`py-4 rounded-xl font-bold text-lg transition-all ${status === 'scanning' ? 'bg-slate-700 text-slate-500' : 'bg-industrial-blue hover:bg-sky-400 text-white'
+              }`}
+          >
+            START SCANNING
+          </button>
+          <button
+            onClick={handleStop}
+            disabled={status === 'idle'}
+            className={`py-4 rounded-xl font-bold text-lg transition-all ${status === 'idle' ? 'bg-slate-700 text-slate-500' : 'bg-industrial-danger hover:bg-red-500 text-white'
+              }`}
+          >
+            STOP SCANNING
+          </button>
+        </div>
+      </div>
+
+      <div className="bg-slate-800 p-6 rounded-2xl border border-slate-700 shadow-xl">
+        <h3 className="text-xl font-bold text-white mb-4">Command Log</h3>
+        <div className="bg-slate-900 rounded-lg p-4 h-[300px] overflow-y-auto font-mono text-sm text-slate-300">
+          {logs.map((log, i) => (
+            <div key={i} className="mb-1 border-b border-slate-800 pb-1 last:border-0">{log}</div>
+          ))}
+          {logs.length === 0 && <span className="text-slate-600">No commands sent yet.</span>}
+        </div>
+
+        <div className="mt-6 p-4 bg-industrial-blue/10 rounded-lg border border-industrial-blue/30">
+          <h4 className="font-bold text-industrial-blue mb-2">System Status</h4>
+          <div className={`text-lg font-bold flex items-center ${status === 'scanning' ? 'text-green-400' : 'text-slate-400'}`}>
+            {status === 'scanning' ? <Activity className="w-6 h-6 mr-2 animate-pulse" /> : <XCircle className="w-6 h-6 mr-2" />}
+            RDK X5: {status.toUpperCase()}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 import { MetricCard } from './components/MetricCard';
 import UserGuide from './components/UserGuide';
 import StereoCameraCalibration from './components/StereoCameraCalibration';
@@ -66,24 +194,23 @@ import { listDatasetFiles } from './api/jobs';
 
 // --- Sub-Components ---
 
-const SidebarItem = ({ 
-  icon: Icon, 
-  label, 
-  active, 
-  onClick 
-}: { 
-  icon: React.ElementType, 
-  label: string, 
-  active: boolean, 
-  onClick: () => void 
+const SidebarItem = ({
+  icon: Icon,
+  label,
+  active,
+  onClick
+}: {
+  icon: React.ElementType,
+  label: string,
+  active: boolean,
+  onClick: () => void
 }) => (
-  <button 
+  <button
     onClick={onClick}
-    className={`flex items-center w-full p-3 mb-2 rounded-lg transition-colors ${
-      active 
-        ? 'bg-industrial-blue text-white shadow-lg shadow-industrial-blue/20' 
-        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
-    }`}
+    className={`flex items-center w-full p-3 mb-2 rounded-lg transition-colors ${active
+      ? 'bg-industrial-blue text-white shadow-lg shadow-industrial-blue/20'
+      : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+      }`}
   >
     <Icon className="w-5 h-5 mr-3" />
     <span className="font-medium">{label}</span>
@@ -99,20 +226,20 @@ const EmptyState = ({ message }: { message: string }) => (
 
 // --- Main Views ---
 
-const DashboardView = ({ 
-  scans, 
-  students, 
-  onNavigate 
-}: { 
-  scans: ScanResult[], 
-  students: Student[], 
-  onNavigate: (view: ViewState) => void 
+const DashboardView = ({
+  scans,
+  students,
+  onNavigate
+}: {
+  scans: ScanResult[],
+  students: Student[],
+  onNavigate: (view: ViewState) => void
 }) => {
-  const avgScore = scans.length > 0 
-    ? Math.round(scans.reduce((acc, s) => acc + s.total_score, 0) / scans.length) 
+  const avgScore = scans.length > 0
+    ? Math.round(scans.reduce((acc, s) => acc + s.total_score, 0) / scans.length)
     : 0;
-  
-  const passRate = scans.length > 0 
+
+  const passRate = scans.length > 0
     ? Math.round((scans.filter(s => s.status === 'Pass').length / scans.length) * 100)
     : 0;
 
@@ -159,7 +286,7 @@ const DashboardView = ({
                 <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
                 <XAxis dataKey="id" stroke="#94a3b8" tickFormatter={(v) => `#${v}`} />
                 <YAxis stroke="#94a3b8" domain={[0, 100]} />
-                <Tooltip 
+                <Tooltip
                   contentStyle={{ backgroundColor: '#1e293b', borderColor: '#334155', color: '#fff' }}
                 />
                 <Line type="monotone" dataKey="total_score" stroke="#0ea5e9" strokeWidth={3} activeDot={{ r: 8 }} />
@@ -183,9 +310,8 @@ const DashboardView = ({
                 </div>
                 <div className="text-right">
                   <span className="block font-bold text-white text-lg">{scan.total_score}</span>
-                  <span className={`text-xs px-2 py-0.5 rounded ${
-                    scan.status === 'Pass' ? 'bg-industrial-success/20 text-industrial-success' : 'bg-industrial-danger/20 text-industrial-danger'
-                  }`}>
+                  <span className={`text-xs px-2 py-0.5 rounded ${scan.status === 'Pass' ? 'bg-industrial-success/20 text-industrial-success' : 'bg-industrial-danger/20 text-industrial-danger'
+                    }`}>
                     {scan.status.toUpperCase()}
                   </span>
                 </div>
@@ -198,15 +324,15 @@ const DashboardView = ({
   );
 };
 
-const HistoryView = ({ 
-  scans, 
-  students 
-}: { 
-  scans: ScanResult[], 
-  students: Student[] 
+const HistoryView = ({
+  scans,
+  students
+}: {
+  scans: ScanResult[],
+  students: Student[]
 }) => {
   const [searchTerm, setSearchTerm] = useState('');
-  const [dateRange, setDateRange] = useState<{start: string, end: string}>({ start: '', end: '' });
+  const [dateRange, setDateRange] = useState<{ start: string, end: string }>({ start: '', end: '' });
   const [currentPage, setCurrentPage] = useState(1);
   const [sortConfig, setSortConfig] = useState<{ key: string, direction: 'asc' | 'desc' }>({ key: 'timestamp', direction: 'desc' });
   const itemsPerPage = 10;
@@ -217,12 +343,12 @@ const HistoryView = ({
   // Filter Logic
   const filteredScans = scans.filter(scan => {
     const student = getStudent(scan.student_id);
-    const matchesSearch = !searchTerm || 
+    const matchesSearch = !searchTerm ||
       (student && (
-        student.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
+        student.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
         student.student_id.toLowerCase().includes(searchTerm.toLowerCase())
       ));
-    
+
     const scanDate = new Date(scan.timestamp);
     const matchesStart = !dateRange.start || scanDate >= new Date(dateRange.start);
     const matchesEnd = !dateRange.end || scanDate <= new Date(new Date(dateRange.end).setHours(23, 59, 59));
@@ -235,11 +361,11 @@ const HistoryView = ({
     if (sortConfig.key === 'student_name') {
       const nameA = getStudent(a.student_id)?.name || '';
       const nameB = getStudent(b.student_id)?.name || '';
-      return sortConfig.direction === 'asc' 
-        ? nameA.localeCompare(nameB) 
+      return sortConfig.direction === 'asc'
+        ? nameA.localeCompare(nameB)
         : nameB.localeCompare(nameA);
     }
-    
+
     // Generic sort for keys present in ScanResult
     const valA = a[sortConfig.key as keyof ScanResult];
     const valB = b[sortConfig.key as keyof ScanResult];
@@ -268,42 +394,42 @@ const HistoryView = ({
       {/* Filters Toolbar */}
       <div className="bg-slate-800 p-4 rounded-xl border border-slate-700 flex flex-col md:flex-row gap-4 justify-between items-center">
         <div className="relative flex-1 w-full">
-           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
-           <input 
-             type="text" 
-             placeholder="Search by Student Name or ID..." 
-             value={searchTerm}
-             onChange={(e) => setSearchTerm(e.target.value)}
-             className="w-full bg-slate-900 border border-slate-600 rounded-lg pl-10 pr-4 py-2 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
-           />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" />
+          <input
+            type="text"
+            placeholder="Search by Student Name or ID..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full bg-slate-900 border border-slate-600 rounded-lg pl-10 pr-4 py-2 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
+          />
         </div>
         <div className="flex gap-4 w-full md:w-auto">
           <div className="flex items-center gap-2 bg-slate-900 border border-slate-600 rounded-lg px-3 py-2">
-             <Calendar className="w-4 h-4 text-slate-500" />
-             <input 
-               type="date" 
-               value={dateRange.start}
-               onChange={(e) => setDateRange({...dateRange, start: e.target.value})}
-               className="bg-transparent text-white text-sm outline-none w-32 [&::-webkit-calendar-picker-indicator]:invert"
-               title="Start Date"
-               placeholder="YYYY-MM-DD"
-             />
-             <span className="text-slate-500">-</span>
-             <input 
-               type="date" 
-               value={dateRange.end}
-               onChange={(e) => setDateRange({...dateRange, end: e.target.value})}
-               className="bg-transparent text-white text-sm outline-none w-32 [&::-webkit-calendar-picker-indicator]:invert"
-               title="End Date"
-               placeholder="YYYY-MM-DD"
-             />
+            <Calendar className="w-4 h-4 text-slate-500" />
+            <input
+              type="date"
+              value={dateRange.start}
+              onChange={(e) => setDateRange({ ...dateRange, start: e.target.value })}
+              className="bg-transparent text-white text-sm outline-none w-32 [&::-webkit-calendar-picker-indicator]:invert"
+              title="Start Date"
+              placeholder="YYYY-MM-DD"
+            />
+            <span className="text-slate-500">-</span>
+            <input
+              type="date"
+              value={dateRange.end}
+              onChange={(e) => setDateRange({ ...dateRange, end: e.target.value })}
+              className="bg-transparent text-white text-sm outline-none w-32 [&::-webkit-calendar-picker-indicator]:invert"
+              title="End Date"
+              placeholder="YYYY-MM-DD"
+            />
           </div>
-          <button 
-             onClick={() => { setSearchTerm(''); setDateRange({start: '', end: ''}); }}
-             className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
-             title="Clear Filters"
+          <button
+            onClick={() => { setSearchTerm(''); setDateRange({ start: '', end: '' }); }}
+            className="p-2 text-slate-400 hover:text-white hover:bg-slate-700 rounded-lg transition-colors"
+            title="Clear Filters"
           >
-             <Filter className="w-5 h-5" />
+            <Filter className="w-5 h-5" />
           </button>
         </div>
       </div>
@@ -313,94 +439,93 @@ const HistoryView = ({
         <table className="w-full text-left">
           <thead className="bg-slate-900 border-b border-slate-700">
             <tr>
-               <th className="p-4 font-semibold text-slate-400 cursor-pointer hover:text-white" onClick={() => handleSort('id')}>
-                 <div className="flex items-center gap-2">Scan ID <ArrowUpDown className="w-3 h-3"/></div>
-               </th>
-               <th className="p-4 font-semibold text-slate-400 cursor-pointer hover:text-white" onClick={() => handleSort('timestamp')}>
-                 <div className="flex items-center gap-2">Timestamp <ArrowUpDown className="w-3 h-3"/></div>
-               </th>
-               <th className="p-4 font-semibold text-slate-400 cursor-pointer hover:text-white" onClick={() => handleSort('student_name')}>
-                 <div className="flex items-center gap-2">Student <ArrowUpDown className="w-3 h-3"/></div>
-               </th>
-               <th className="p-4 font-semibold text-slate-400 cursor-pointer hover:text-white" onClick={() => handleSort('total_score')}>
-                 <div className="flex items-center gap-2">Score <ArrowUpDown className="w-3 h-3"/></div>
-               </th>
-               <th className="p-4 font-semibold text-slate-400 text-right">Metrics Summary</th>
+              <th className="p-4 font-semibold text-slate-400 cursor-pointer hover:text-white" onClick={() => handleSort('id')}>
+                <div className="flex items-center gap-2">Scan ID <ArrowUpDown className="w-3 h-3" /></div>
+              </th>
+              <th className="p-4 font-semibold text-slate-400 cursor-pointer hover:text-white" onClick={() => handleSort('timestamp')}>
+                <div className="flex items-center gap-2">Timestamp <ArrowUpDown className="w-3 h-3" /></div>
+              </th>
+              <th className="p-4 font-semibold text-slate-400 cursor-pointer hover:text-white" onClick={() => handleSort('student_name')}>
+                <div className="flex items-center gap-2">Student <ArrowUpDown className="w-3 h-3" /></div>
+              </th>
+              <th className="p-4 font-semibold text-slate-400 cursor-pointer hover:text-white" onClick={() => handleSort('total_score')}>
+                <div className="flex items-center gap-2">Score <ArrowUpDown className="w-3 h-3" /></div>
+              </th>
+              <th className="p-4 font-semibold text-slate-400 text-right">Metrics Summary</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700">
             {paginatedScans.length === 0 ? (
-               <tr>
-                 <td colSpan={5} className="p-8 text-center text-slate-500">
-                   No records found matching your filters.
-                 </td>
-               </tr>
+              <tr>
+                <td colSpan={5} className="p-8 text-center text-slate-500">
+                  No records found matching your filters.
+                </td>
+              </tr>
             ) : (
-               paginatedScans.map(scan => {
-                 const student = getStudent(scan.student_id);
-                 return (
-                   <tr key={scan.id} className="hover:bg-slate-750 transition-colors">
-                     <td className="p-4 font-mono text-slate-500">#{scan.id}</td>
-                     <td className="p-4 text-white">
-                        <div>{new Date(scan.timestamp).toLocaleDateString()}</div>
-                        <div className="text-xs text-slate-500">{new Date(scan.timestamp).toLocaleTimeString()}</div>
-                     </td>
-                     <td className="p-4">
-                        <div className="font-medium text-white">{student?.name || 'Unknown'}</div>
-                        <div className="text-xs text-slate-400">{student?.student_id || 'N/A'}</div>
-                     </td>
-                     <td className="p-4">
-                        <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${
-                          scan.status === 'Pass' 
-                            ? 'bg-industrial-success/10 text-industrial-success border-industrial-success/20' 
-                            : 'bg-industrial-danger/10 text-industrial-danger border-industrial-danger/20'
+              paginatedScans.map(scan => {
+                const student = getStudent(scan.student_id);
+                return (
+                  <tr key={scan.id} className="hover:bg-slate-750 transition-colors">
+                    <td className="p-4 font-mono text-slate-500">#{scan.id}</td>
+                    <td className="p-4 text-white">
+                      <div>{new Date(scan.timestamp).toLocaleDateString()}</div>
+                      <div className="text-xs text-slate-500">{new Date(scan.timestamp).toLocaleTimeString()}</div>
+                    </td>
+                    <td className="p-4">
+                      <div className="font-medium text-white">{student?.name || 'Unknown'}</div>
+                      <div className="text-xs text-slate-400">{student?.student_id || 'N/A'}</div>
+                    </td>
+                    <td className="p-4">
+                      <span className={`inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border ${scan.status === 'Pass'
+                        ? 'bg-industrial-success/10 text-industrial-success border-industrial-success/20'
+                        : 'bg-industrial-danger/10 text-industrial-danger border-industrial-danger/20'
                         }`}>
-                          {scan.status} ({scan.total_score}%)
-                        </span>
-                     </td>
-                     <td className="p-4 text-right">
-                        <div className="flex justify-end gap-3 text-xs text-slate-400">
-                           <span title="Bead Width">W: <span className="text-slate-200">{scan.metrics.width_val}mm</span></span>
-                           <span title="Height">H: <span className="text-slate-200">{scan.metrics.height_val}mm</span></span>
-                           {scan.defects_json.length > 0 ? (
-                              <span className="text-industrial-danger" title="Defects">{scan.defects_json.length} Defect(s)</span>
-                           ) : (
-                              <span className="text-industrial-success">Clean</span>
-                           )}
-                        </div>
-                     </td>
-                   </tr>
-                 );
-               })
+                        {scan.status} ({scan.total_score}%)
+                      </span>
+                    </td>
+                    <td className="p-4 text-right">
+                      <div className="flex justify-end gap-3 text-xs text-slate-400">
+                        <span title="Bead Width">W: <span className="text-slate-200">{scan.metrics.width_val}mm</span></span>
+                        <span title="Height">H: <span className="text-slate-200">{scan.metrics.height_val}mm</span></span>
+                        {scan.defects_json.length > 0 ? (
+                          <span className="text-industrial-danger" title="Defects">{scan.defects_json.length} Defect(s)</span>
+                        ) : (
+                          <span className="text-industrial-success">Clean</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })
             )}
           </tbody>
         </table>
-        
+
         {/* Pagination Controls */}
         <div className="bg-slate-900 p-4 border-t border-slate-700 flex justify-between items-center">
-           <div className="text-sm text-slate-500">
-             Showing <span className="font-medium text-white">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-white">{Math.min(currentPage * itemsPerPage, filteredScans.length)}</span> of <span className="font-medium text-white">{filteredScans.length}</span> results
-           </div>
-           <div className="flex gap-2">
-              <button 
-                disabled={currentPage === 1}
-                onClick={() => setCurrentPage(c => Math.max(1, c - 1))}
-                className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Previous Page"
-                aria-label="Previous Page"
-              >
-                <ChevronLeft className="w-4 h-4" />
-              </button>
-              <button 
-                disabled={currentPage === totalPages || totalPages === 0}
-                onClick={() => setCurrentPage(c => Math.min(totalPages, c + 1))}
-                className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                title="Next Page"
-                aria-label="Next Page"
-              >
-                <ChevronRight className="w-4 h-4" />
-              </button>
-           </div>
+          <div className="text-sm text-slate-500">
+            Showing <span className="font-medium text-white">{(currentPage - 1) * itemsPerPage + 1}</span> to <span className="font-medium text-white">{Math.min(currentPage * itemsPerPage, filteredScans.length)}</span> of <span className="font-medium text-white">{filteredScans.length}</span> results
+          </div>
+          <div className="flex gap-2">
+            <button
+              disabled={currentPage === 1}
+              onClick={() => setCurrentPage(c => Math.max(1, c - 1))}
+              className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Previous Page"
+              aria-label="Previous Page"
+            >
+              <ChevronLeft className="w-4 h-4" />
+            </button>
+            <button
+              disabled={currentPage === totalPages || totalPages === 0}
+              onClick={() => setCurrentPage(c => Math.min(totalPages, c + 1))}
+              className="p-2 rounded-lg bg-slate-800 border border-slate-700 text-white hover:bg-slate-700 disabled:opacity-50 disabled:cursor-not-allowed"
+              title="Next Page"
+              aria-label="Next Page"
+            >
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
     </div>
@@ -415,22 +540,22 @@ const CalibrationView = () => {
   const [isSaved, setIsSaved] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [isMatrixEditing, setIsMatrixEditing] = useState(false);
-  
+
   const videoRef = useRef<HTMLVideoElement>(null);
   const [isCameraActive, setIsCameraActive] = useState(false);
 
   useEffect(() => {
     let stream: MediaStream | null = null;
-    
+
     const initCamera = async () => {
       try {
-        stream = await navigator.mediaDevices.getUserMedia({ 
+        stream = await navigator.mediaDevices.getUserMedia({
           video: {
             width: { ideal: 1920 },
             height: { ideal: 1080 }
           }
         });
-        
+
         if (videoRef.current) {
           videoRef.current.srcObject = stream;
           setIsCameraActive(true);
@@ -457,7 +582,7 @@ const CalibrationView = () => {
     setResult(null);
     setIsSaved(false);
     setIsMatrixEditing(false);
-    
+
     // Simulate progress bar
     const interval = setInterval(() => {
       setProgress(p => Math.min(p + 5, 95));
@@ -478,7 +603,7 @@ const CalibrationView = () => {
   };
 
   const handleSave = async () => {
-    if(!result) return;
+    if (!result) return;
     setIsSaving(true);
     setErrorMessage(null);
     try {
@@ -505,12 +630,12 @@ const CalibrationView = () => {
   const handleMatrixChange = (rIndex: number, cIndex: number, valStr: string) => {
     if (!result) return;
     const newVal = parseFloat(valStr);
-    
+
     // Create deep copy of matrix
     const newMatrix = result.matrix.map(row => [...row]);
     // Allow empty string or partial typing, defaulting to 0 only for matrix math, but input holds value
     newMatrix[rIndex][cIndex] = isNaN(newVal) ? 0 : newVal;
-    
+
     setResult({ ...result, matrix: newMatrix });
   };
 
@@ -525,25 +650,24 @@ const CalibrationView = () => {
     <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 h-full">
       {/* Feed Area */}
       <div className="space-y-4">
-        <div className={`relative aspect-video bg-black rounded-2xl overflow-hidden border-2 shadow-2xl transition-colors ${
-          status === 'error' ? 'border-industrial-danger' : 'border-slate-700'
-        }`}>
+        <div className={`relative aspect-video bg-black rounded-2xl overflow-hidden border-2 shadow-2xl transition-colors ${status === 'error' ? 'border-industrial-danger' : 'border-slate-700'
+          }`}>
           {isCameraActive ? (
-            <video 
-              ref={videoRef} 
-              autoPlay 
-              muted 
-              playsInline 
-              className="w-full h-full object-cover" 
+            <video
+              ref={videoRef}
+              autoPlay
+              muted
+              playsInline
+              className="w-full h-full object-cover"
             />
           ) : (
-            <img 
-              src={CAMERA_FEED_PLACEHOLDER} 
-              alt="Calibration Feed" 
+            <img
+              src={CAMERA_FEED_PLACEHOLDER}
+              alt="Calibration Feed"
               className="w-full h-full object-cover opacity-60"
             />
           )}
-          
+
           {/* Instructions Overlay */}
           <div className="absolute inset-0 flex items-center justify-center pointer-events-none">
             {status === 'idle' && (
@@ -555,38 +679,38 @@ const CalibrationView = () => {
                 </p>
               </div>
             )}
-            
+
             {status === 'running' && (
               <div className="w-full h-full relative">
                 {/* Simulated Detection Grids */}
                 <div className="absolute top-[20%] left-[25%] w-[50%] h-[60%] border-2 border-industrial-success/50 bg-industrial-success/5 animate-pulse grid grid-cols-6 grid-rows-4">
-                   {[...Array(24)].map((_, i) => <div key={i} className="border-[0.5px] border-industrial-success/20"></div>)}
+                  {[...Array(24)].map((_, i) => <div key={i} className="border-[0.5px] border-industrial-success/20"></div>)}
                 </div>
                 <div className="absolute bottom-4 left-0 right-0 text-center">
-                   <span className="bg-slate-900/80 text-industrial-success px-3 py-1 rounded-full font-mono text-xs border border-industrial-success/30">
-                     PATTERN DETECTED: 54 POINTS
-                   </span>
+                  <span className="bg-slate-900/80 text-industrial-success px-3 py-1 rounded-full font-mono text-xs border border-industrial-success/30">
+                    PATTERN DETECTED: 54 POINTS
+                  </span>
                 </div>
               </div>
             )}
 
             {status === 'error' && (
-               <div className="text-center p-6 bg-slate-900/90 rounded-xl backdrop-blur-sm border border-industrial-danger">
-                  <AlertTriangle className="w-12 h-12 text-industrial-danger mx-auto mb-3" />
-                  <h3 className="text-xl font-bold text-white">Calibration Error</h3>
-                  <p className="text-slate-300 mt-2 max-w-sm text-sm">
-                    Sensor connection unstable or pattern not detected.
-                  </p>
-               </div>
+              <div className="text-center p-6 bg-slate-900/90 rounded-xl backdrop-blur-sm border border-industrial-danger">
+                <AlertTriangle className="w-12 h-12 text-industrial-danger mx-auto mb-3" />
+                <h3 className="text-xl font-bold text-white">Calibration Error</h3>
+                <p className="text-slate-300 mt-2 max-w-sm text-sm">
+                  Sensor connection unstable or pattern not detected.
+                </p>
+              </div>
             )}
           </div>
         </div>
-        
+
         <div className="bg-slate-800 p-4 rounded-xl border border-slate-700">
           <div className="flex items-center justify-between text-sm text-slate-400 mb-2">
             <span>Sensor Status</span>
             <span className={`flex items-center ${status === 'error' ? 'text-industrial-danger' : 'text-industrial-success'}`}>
-              {status === 'error' ? <XCircle className="w-3 h-3 mr-1"/> : <CheckCircle2 className="w-3 h-3 mr-1"/>}
+              {status === 'error' ? <XCircle className="w-3 h-3 mr-1" /> : <CheckCircle2 className="w-3 h-3 mr-1" />}
               {status === 'error' ? 'Error' : isCameraActive ? 'Active (Live)' : 'Simulated (Mock)'}
             </span>
           </div>
@@ -621,10 +745,10 @@ const CalibrationView = () => {
               })()}
             </div>
             <div className="flex items-center justify-between text-xs text-slate-500 font-mono mt-2">
-               <span className="flex items-center">
-                 <div className="w-1.5 h-1.5 bg-industrial-blue rounded-full mr-2 animate-ping"></div>
-                 {getCalibrationStepLabel(progress)}...
-               </span>
+              <span className="flex items-center">
+                <div className="w-1.5 h-1.5 bg-industrial-blue rounded-full mr-2 animate-ping"></div>
+                {getCalibrationStepLabel(progress)}...
+              </span>
             </div>
           </div>
         )}
@@ -632,16 +756,16 @@ const CalibrationView = () => {
         {/* Error State */}
         {status === 'error' && (
           <div className="mb-8 p-6 bg-industrial-danger/10 rounded-xl border border-industrial-danger/50 animate-in fade-in slide-in-from-bottom-2">
-             <div className="flex items-start text-industrial-danger mb-4">
-                <AlertTriangle className="w-6 h-6 mr-3 mt-0.5 flex-shrink-0" />
-                <div>
-                  <h4 className="font-bold text-lg">Calibration Failed</h4>
-                  <p className="text-slate-300 mt-1 text-sm leading-relaxed">{errorMessage}</p>
-                </div>
-             </div>
-             <p className="text-xs text-slate-500 mb-4">
-                Troubleshooting: Check MIPI/USB connections and ensure lighting is adequate for pattern detection.
-             </p>
+            <div className="flex items-start text-industrial-danger mb-4">
+              <AlertTriangle className="w-6 h-6 mr-3 mt-0.5 flex-shrink-0" />
+              <div>
+                <h4 className="font-bold text-lg">Calibration Failed</h4>
+                <p className="text-slate-300 mt-1 text-sm leading-relaxed">{errorMessage}</p>
+              </div>
+            </div>
+            <p className="text-xs text-slate-500 mb-4">
+              Troubleshooting: Check MIPI/USB connections and ensure lighting is adequate for pattern detection.
+            </p>
           </div>
         )}
 
@@ -649,62 +773,62 @@ const CalibrationView = () => {
         {status === 'complete' && result && (
           <div className="mb-8 p-6 bg-slate-900/50 rounded-xl border border-slate-700 animate-in fade-in slide-in-from-bottom-2">
             <div className="flex items-center justify-between mb-6">
-               <div className="flex items-center text-industrial-success">
-                  <CheckCircle2 className="w-5 h-5 mr-2" />
-                  <span className="font-bold">Calibration Successful</span>
-               </div>
-               <span className="text-xs text-slate-500 font-mono">RMS Error: {result.error}</span>
+              <div className="flex items-center text-industrial-success">
+                <CheckCircle2 className="w-5 h-5 mr-2" />
+                <span className="font-bold">Calibration Successful</span>
+              </div>
+              <span className="text-xs text-slate-500 font-mono">RMS Error: {result.error}</span>
             </div>
-            
+
             <div className="space-y-6">
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <h4 className="text-xs uppercase text-slate-500 tracking-wider">Camera Matrix</h4>
-                  <button 
+                  <button
                     onClick={() => setIsMatrixEditing(!isMatrixEditing)}
                     className={`p-1.5 rounded-lg transition-colors flex items-center space-x-2 text-xs font-medium ${isMatrixEditing ? 'bg-industrial-blue text-white' : 'bg-slate-800 text-slate-400 hover:text-white hover:bg-slate-700'}`}
                     title={isMatrixEditing ? "Done Editing" : "Manual Override"}
                   >
-                     {isMatrixEditing ? (
-                       <>
-                         <CheckCircle2 className="w-3 h-3" />
-                         <span>Done</span>
-                       </>
-                     ) : (
-                       <>
-                         <Pencil className="w-3 h-3" />
-                         <span>Edit</span>
-                       </>
-                     )}
+                    {isMatrixEditing ? (
+                      <>
+                        <CheckCircle2 className="w-3 h-3" />
+                        <span>Done</span>
+                      </>
+                    ) : (
+                      <>
+                        <Pencil className="w-3 h-3" />
+                        <span>Edit</span>
+                      </>
+                    )}
                   </button>
                 </div>
                 <div className="flex items-center justify-center bg-slate-950 p-4 rounded-lg border border-slate-800">
-                   {/* Matrix Visual */}
-                   <div className="relative flex">
-                      <div className="w-2 border-l-2 border-t-2 border-b-2 border-slate-500 rounded-l-lg"></div>
-                      <div className="grid grid-cols-3 gap-x-2 gap-y-2 font-mono text-sm px-4 py-1 text-industrial-blue">
-                        {result.matrix.map((row, rI) => 
-                          row.map((val, cI) => (
-                            <div key={`${rI}-${cI}`} className="flex items-center justify-end">
-                              {isMatrixEditing ? (
-                                <input 
-                                  type="number"
-                                  value={val}
-                                  onChange={(e) => handleMatrixChange(rI, cI, e.target.value)}
-                                  className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-right focus:border-industrial-blue focus:ring-1 focus:ring-industrial-blue outline-none text-white font-mono"
-                                  step="0.1"
-                                  title="Calibration Matrix Value"
-                                  placeholder="0.0"
-                                />
-                              ) : (
-                                <span className="px-2 py-1">{val.toFixed(1)}</span>
-                              )}
-                            </div>
-                          ))
-                        )}
-                      </div>
-                      <div className="w-2 border-r-2 border-t-2 border-b-2 border-slate-500 rounded-r-lg"></div>
-                   </div>
+                  {/* Matrix Visual */}
+                  <div className="relative flex">
+                    <div className="w-2 border-l-2 border-t-2 border-b-2 border-slate-500 rounded-l-lg"></div>
+                    <div className="grid grid-cols-3 gap-x-2 gap-y-2 font-mono text-sm px-4 py-1 text-industrial-blue">
+                      {result.matrix.map((row, rI) =>
+                        row.map((val, cI) => (
+                          <div key={`${rI}-${cI}`} className="flex items-center justify-end">
+                            {isMatrixEditing ? (
+                              <input
+                                type="number"
+                                value={val}
+                                onChange={(e) => handleMatrixChange(rI, cI, e.target.value)}
+                                className="w-20 bg-slate-900 border border-slate-700 rounded px-2 py-1 text-xs text-right focus:border-industrial-blue focus:ring-1 focus:ring-industrial-blue outline-none text-white font-mono"
+                                step="0.1"
+                                title="Calibration Matrix Value"
+                                placeholder="0.0"
+                              />
+                            ) : (
+                              <span className="px-2 py-1">{val.toFixed(1)}</span>
+                            )}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                    <div className="w-2 border-r-2 border-t-2 border-b-2 border-slate-500 rounded-r-lg"></div>
+                  </div>
                 </div>
               </div>
 
@@ -722,21 +846,20 @@ const CalibrationView = () => {
           {status === 'complete' ? (
             <div className="space-y-3">
               <div className="flex space-x-3">
-                <button 
+                <button
                   onClick={handleReset}
                   className="flex-1 py-3 rounded-xl font-bold bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-all"
                 >
                   <RotateCcw className="w-5 h-5 mr-2" />
                   Recalibrate
                 </button>
-                <button 
+                <button
                   onClick={handleSave}
                   disabled={isSaving || isSaved}
-                  className={`flex-[2] py-3 rounded-xl font-bold flex items-center justify-center transition-all ${
-                    isSaved 
-                      ? 'bg-industrial-success text-white' 
-                      : 'bg-industrial-blue hover:bg-sky-400 text-white shadow-lg shadow-industrial-blue/20'
-                  }`}
+                  className={`flex-[2] py-3 rounded-xl font-bold flex items-center justify-center transition-all ${isSaved
+                    ? 'bg-industrial-success text-white'
+                    : 'bg-industrial-blue hover:bg-sky-400 text-white shadow-lg shadow-industrial-blue/20'
+                    }`}
                 >
                   {isSaving ? (
                     <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
@@ -750,21 +873,21 @@ const CalibrationView = () => {
               </div>
               {/* Save Error Message Inline */}
               {errorMessage && (
-                 <div className="text-center p-2 rounded bg-industrial-danger/10 text-industrial-danger text-sm flex items-center justify-center animate-in fade-in">
-                    <AlertTriangle className="w-4 h-4 mr-2" />
-                    {errorMessage}
-                 </div>
+                <div className="text-center p-2 rounded bg-industrial-danger/10 text-industrial-danger text-sm flex items-center justify-center animate-in fade-in">
+                  <AlertTriangle className="w-4 h-4 mr-2" />
+                  {errorMessage}
+                </div>
               )}
             </div>
           ) : status === 'error' ? (
             <div className="flex space-x-3">
-               <button 
+              <button
                 onClick={handleReset}
                 className="flex-1 py-3 rounded-xl font-bold bg-slate-700 hover:bg-slate-600 text-white flex items-center justify-center transition-all"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={handleStartCalibration}
                 className="flex-[2] py-3 rounded-xl font-bold bg-industrial-blue hover:bg-sky-400 text-white shadow-lg shadow-industrial-blue/20 flex items-center justify-center transition-all"
               >
@@ -773,14 +896,13 @@ const CalibrationView = () => {
               </button>
             </div>
           ) : (
-            <button 
+            <button
               onClick={handleStartCalibration}
               disabled={status === 'running'}
-              className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center transition-all ${
-                status === 'running' 
-                  ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                  : 'bg-industrial-blue hover:bg-sky-400 text-white hover:scale-[1.02] shadow-lg shadow-industrial-blue/20'
-              }`}
+              className={`w-full py-4 rounded-xl font-bold uppercase tracking-wider flex items-center justify-center transition-all ${status === 'running'
+                ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+                : 'bg-industrial-blue hover:bg-sky-400 text-white hover:scale-[1.02] shadow-lg shadow-industrial-blue/20'
+                }`}
             >
               {status === 'running' ? (
                 <RefreshCw className="w-5 h-5 mr-2 animate-spin" />
@@ -796,12 +918,12 @@ const CalibrationView = () => {
   );
 };
 
-const SettingsView = ({ 
-  currentRubric, 
-  onSaveRubric 
-}: { 
-  currentRubric: RubricConfig, 
-  onSaveRubric: (r: RubricConfig) => Promise<void> 
+const SettingsView = ({
+  currentRubric,
+  onSaveRubric
+}: {
+  currentRubric: RubricConfig,
+  onSaveRubric: (r: RubricConfig) => Promise<void>
 }) => {
   const [rubric, setRubric] = useState<RubricConfig>(currentRubric);
   const [selectedPreset, setSelectedPreset] = useState<string>(
@@ -809,13 +931,13 @@ const SettingsView = ({
   );
   const [isSaving, setIsSaving] = useState(false);
   const [isDirty, setIsDirty] = useState(false);
-  
+
   // RDK Connection Settings
   const [rdkHost, setRdkHost] = useState<string>('rdk-x5.local');
   const [rdkUser, setRdkUser] = useState<string>('root');
   const [rdkDestPath, setRdkDestPath] = useState<string>('/opt/weldvision/models/model.bin');
   const [rdkSettingsDirty, setRdkSettingsDirty] = useState(false);
-  
+
   // Load RDK settings from localStorage
   useEffect(() => {
     try {
@@ -823,7 +945,7 @@ const SettingsView = ({
       if (saved.deviceHost) setRdkHost(saved.deviceHost);
       if (saved.deviceUser) setRdkUser(saved.deviceUser);
       if (saved.destPath) setRdkDestPath(saved.destPath);
-    } catch {}
+    } catch { }
   }, []);
 
   // Sync state when prop updates externally
@@ -858,7 +980,7 @@ const SettingsView = ({
       setIsSaving(false);
     }
   };
-  
+
   const handleSaveRdkSettings = () => {
     try {
       const settings = JSON.parse(localStorage.getItem("orchestrationSettings") || "{}");
@@ -890,12 +1012,12 @@ const SettingsView = ({
             <p className="text-slate-400 mt-1">Configure connection settings for your RDK X5 edge device.</p>
           </div>
           <div className="flex items-center space-x-3">
-            <button 
+            <button
               onClick={handleSaveRdkSettings}
               disabled={!rdkSettingsDirty}
               className="px-6 py-2 rounded-lg bg-industrial-blue hover:bg-sky-400 text-white font-bold shadow-lg shadow-industrial-blue/20 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
             >
-              <Save className="w-4 h-4 mr-2"/>
+              <Save className="w-4 h-4 mr-2" />
               Save Connection
             </button>
           </div>
@@ -906,7 +1028,7 @@ const SettingsView = ({
             <label className="block text-sm font-medium text-slate-400 mb-2">
               Device Host (IP or Hostname)
             </label>
-            <input 
+            <input
               type="text"
               value={rdkHost}
               onChange={(e) => { setRdkHost(e.target.value); setRdkSettingsDirty(true); }}
@@ -914,7 +1036,7 @@ const SettingsView = ({
               placeholder="e.g., 192.168.1.100 or 10.0.0.2"
             />
             <p className="text-xs text-slate-500 mt-2">
-              Common options: 
+              Common options:
               <button className="text-industrial-blue hover:underline ml-1" onClick={() => { setRdkHost('192.168.1.100'); setRdkSettingsDirty(true); }}>Router</button>,
               <button className="text-industrial-blue hover:underline ml-1" onClick={() => { setRdkHost('10.0.0.2'); setRdkSettingsDirty(true); }}>P2P</button>,
               <button className="text-industrial-blue hover:underline ml-1" onClick={() => { setRdkHost('192.168.7.2'); setRdkSettingsDirty(true); }}>USB</button>
@@ -925,7 +1047,7 @@ const SettingsView = ({
             <label className="block text-sm font-medium text-slate-400 mb-2">
               SSH Username
             </label>
-            <input 
+            <input
               type="text"
               value={rdkUser}
               onChange={(e) => { setRdkUser(e.target.value); setRdkSettingsDirty(true); }}
@@ -938,7 +1060,7 @@ const SettingsView = ({
             <label className="block text-sm font-medium text-slate-400 mb-2">
               Model Destination Path on RDK
             </label>
-            <input 
+            <input
               type="text"
               value={rdkDestPath}
               onChange={(e) => { setRdkDestPath(e.target.value); setRdkSettingsDirty(true); }}
@@ -955,7 +1077,7 @@ const SettingsView = ({
               Connection status will be shown when deploying models
             </div>
             <div className="text-xs text-slate-500">
-              See Model Training → Orchestration Panel for live connection status
+              See Model Training â†’ Orchestration Panel for live connection status
             </div>
           </div>
         </div>
@@ -972,198 +1094,196 @@ const SettingsView = ({
             <p className="text-slate-400 mt-1">Adjust the acceptance criteria for the automated evaluation system.</p>
           </div>
           <div className="flex items-center space-x-3">
-             <button 
-               onClick={() => {
-                 setRubric(currentRubric);
-                 setIsDirty(false);
-               }}
-               disabled={!isDirty}
-               className="px-4 py-2 rounded-lg text-slate-400 hover:text-white disabled:opacity-50 transition-colors"
-             >
-               Discard
-             </button>
-             <button 
-               onClick={handleSave}
-               disabled={!isDirty || isSaving}
-               className="px-6 py-2 rounded-lg bg-industrial-blue hover:bg-sky-400 text-white font-bold shadow-lg shadow-industrial-blue/20 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
-             >
-               {isSaving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin"/> : <Save className="w-4 h-4 mr-2"/>}
-               Apply Changes
-             </button>
+            <button
+              onClick={() => {
+                setRubric(currentRubric);
+                setIsDirty(false);
+              }}
+              disabled={!isDirty}
+              className="px-4 py-2 rounded-lg text-slate-400 hover:text-white disabled:opacity-50 transition-colors"
+            >
+              Discard
+            </button>
+            <button
+              onClick={handleSave}
+              disabled={!isDirty || isSaving}
+              className="px-6 py-2 rounded-lg bg-industrial-blue hover:bg-sky-400 text-white font-bold shadow-lg shadow-industrial-blue/20 flex items-center disabled:opacity-50 disabled:cursor-not-allowed transition-all"
+            >
+              {isSaving ? <RefreshCw className="w-4 h-4 mr-2 animate-spin" /> : <Save className="w-4 h-4 mr-2" />}
+              Apply Changes
+            </button>
           </div>
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-           {/* Sidebar / Preset Selector */}
-           <div className="md:col-span-1 space-y-6 border-r border-slate-700 pr-8">
-              <div>
-                <label className="block text-sm font-medium text-slate-400 mb-2">Rubric Preset</label>
-                <div className="space-y-2">
-                  {Object.keys(RUBRIC_PRESETS).map(key => (
-                    <button
-                      key={key}
-                      onClick={() => handlePresetChange(key)}
-                      className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
-                        selectedPreset === key 
-                          ? 'bg-industrial-blue/10 border-industrial-blue text-white ring-1 ring-industrial-blue' 
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
-                      }`}
-                    >
-                      <div className="font-semibold">{key}</div>
-                      <div className="text-xs opacity-70 mt-1">{RUBRIC_PRESETS[key].name}</div>
-                    </button>
-                  ))}
+          {/* Sidebar / Preset Selector */}
+          <div className="md:col-span-1 space-y-6 border-r border-slate-700 pr-8">
+            <div>
+              <label className="block text-sm font-medium text-slate-400 mb-2">Rubric Preset</label>
+              <div className="space-y-2">
+                {Object.keys(RUBRIC_PRESETS).map(key => (
                   <button
-                      onClick={() => handlePresetChange('Custom')}
-                      className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${
-                        selectedPreset === 'Custom' 
-                          ? 'bg-industrial-orange/10 border-industrial-orange text-white ring-1 ring-industrial-orange' 
-                          : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
+                    key={key}
+                    onClick={() => handlePresetChange(key)}
+                    className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${selectedPreset === key
+                      ? 'bg-industrial-blue/10 border-industrial-blue text-white ring-1 ring-industrial-blue'
+                      : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
                       }`}
-                    >
-                      <div className="font-semibold">Custom</div>
-                      <div className="text-xs opacity-70 mt-1">Manual Parameters</div>
-                    </button>
+                  >
+                    <div className="font-semibold">{key}</div>
+                    <div className="text-xs opacity-70 mt-1">{RUBRIC_PRESETS[key].name}</div>
+                  </button>
+                ))}
+                <button
+                  onClick={() => handlePresetChange('Custom')}
+                  className={`w-full text-left px-4 py-3 rounded-xl border transition-all ${selectedPreset === 'Custom'
+                    ? 'bg-industrial-orange/10 border-industrial-orange text-white ring-1 ring-industrial-orange'
+                    : 'bg-slate-900 border-slate-700 text-slate-400 hover:border-slate-500'
+                    }`}
+                >
+                  <div className="font-semibold">Custom</div>
+                  <div className="text-xs opacity-70 mt-1">Manual Parameters</div>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Form Area */}
+          <div className="md:col-span-2 space-y-8">
+            {/* Width Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <Ruler className="w-5 h-5 mr-2 text-slate-400" />
+                Bead Width
+              </h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Target (mm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={rubric.targetWidth}
+                    onChange={(e) => handleChange('targetWidth', e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
+                    title="Target Bead Width (mm)"
+                    placeholder="e.g. 8.0"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Tolerance (Â±mm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={rubric.widthTolerance}
+                    onChange={(e) => handleChange('widthTolerance', e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
+                    title="Width Tolerance (Â±mm)"
+                    placeholder="e.g. 1.0"
+                  />
                 </div>
               </div>
-           </div>
+              <div className="mt-2 text-xs text-slate-500 bg-slate-900/50 p-2 rounded">
+                Acceptable Range: <span className="text-white font-mono">{(rubric.targetWidth - rubric.widthTolerance).toFixed(1)}mm</span> to <span className="text-white font-mono">{(rubric.targetWidth + rubric.widthTolerance).toFixed(1)}mm</span>
+              </div>
+            </div>
 
-           {/* Form Area */}
-           <div className="md:col-span-2 space-y-8">
-             {/* Width Section */}
-             <div>
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <Ruler className="w-5 h-5 mr-2 text-slate-400" />
-                  Bead Width
-                </h3>
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Target (mm)</label>
-                    <input 
-                      type="number"
-                      step="0.1"
-                      value={rubric.targetWidth}
-                      onChange={(e) => handleChange('targetWidth', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
-                      title="Target Bead Width (mm)"
-                      placeholder="e.g. 8.0"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Tolerance (±mm)</label>
-                    <input 
-                      type="number"
-                      step="0.1"
-                      value={rubric.widthTolerance}
-                      onChange={(e) => handleChange('widthTolerance', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
-                      title="Width Tolerance (±mm)"
-                      placeholder="e.g. 1.0"
-                    />
-                  </div>
+            {/* Height Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <ScanLine className="w-5 h-5 mr-2 text-slate-400" />
+                Reinforcement Height
+              </h3>
+              <div className="grid grid-cols-2 gap-6">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Target (mm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={rubric.targetHeight}
+                    onChange={(e) => handleChange('targetHeight', e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
+                    title="Target Reinforcement Height (mm)"
+                    placeholder="e.g. 2.0"
+                  />
                 </div>
-                <div className="mt-2 text-xs text-slate-500 bg-slate-900/50 p-2 rounded">
-                   Acceptable Range: <span className="text-white font-mono">{(rubric.targetWidth - rubric.widthTolerance).toFixed(1)}mm</span> to <span className="text-white font-mono">{(rubric.targetWidth + rubric.widthTolerance).toFixed(1)}mm</span>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Tolerance (Â±mm)</label>
+                  <input
+                    type="number"
+                    step="0.1"
+                    value={rubric.heightTolerance}
+                    onChange={(e) => handleChange('heightTolerance', e.target.value)}
+                    className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
+                    title="Height Tolerance (Â±mm)"
+                    placeholder="e.g. 0.5"
+                  />
                 </div>
-             </div>
+              </div>
+            </div>
 
-             {/* Height Section */}
-             <div>
-                <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <ScanLine className="w-5 h-5 mr-2 text-slate-400" />
-                  Reinforcement Height
-                </h3>
-                <div className="grid grid-cols-2 gap-6">
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Target (mm)</label>
-                    <input 
-                      type="number"
-                      step="0.1"
-                      value={rubric.targetHeight}
-                      onChange={(e) => handleChange('targetHeight', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
-                      title="Target Reinforcement Height (mm)"
-                      placeholder="e.g. 2.0"
+            {/* Defects Section */}
+            <div>
+              <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
+                <AlertOctagon className="w-5 h-5 mr-2 text-slate-400" />
+                Defect Sensitivity
+              </h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Max Allowed Porosity Count</label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="range"
+                      min="0"
+                      max="10"
+                      step="1"
+                      value={rubric.maxPorosity}
+                      onChange={(e) => handleChange('maxPorosity', e.target.value)}
+                      className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-industrial-blue"
+                      title="Max Allowed Porosity"
                     />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-slate-400 mb-2">Tolerance (±mm)</label>
-                    <input 
-                      type="number"
-                      step="0.1"
-                      value={rubric.heightTolerance}
-                      onChange={(e) => handleChange('heightTolerance', e.target.value)}
-                      className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none"
-                      title="Height Tolerance (±mm)"
-                      placeholder="e.g. 0.5"
-                    />
+                    <span className="w-12 text-center bg-slate-900 py-1 rounded border border-slate-600 font-mono">
+                      {rubric.maxPorosity}
+                    </span>
                   </div>
                 </div>
-             </div>
-
-             {/* Defects Section */}
-             <div>
-               <h3 className="text-lg font-semibold text-white mb-4 flex items-center">
-                  <AlertOctagon className="w-5 h-5 mr-2 text-slate-400" />
-                  Defect Sensitivity
-                </h3>
-                <div className="space-y-4">
-                  <div>
-                     <label className="block text-sm font-medium text-slate-400 mb-2">Max Allowed Porosity Count</label>
-                     <div className="flex items-center space-x-4">
-                        <input 
-                          type="range" 
-                          min="0" 
-                          max="10" 
-                          step="1"
-                          value={rubric.maxPorosity}
-                          onChange={(e) => handleChange('maxPorosity', e.target.value)}
-                          className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-industrial-blue"
-                          title="Max Allowed Porosity"
-                        />
-                        <span className="w-12 text-center bg-slate-900 py-1 rounded border border-slate-600 font-mono">
-                          {rubric.maxPorosity}
-                        </span>
-                     </div>
+                <div>
+                  <label className="block text-sm font-medium text-slate-400 mb-2">Max Allowed Spatter Count</label>
+                  <div className="flex items-center space-x-4">
+                    <input
+                      type="range"
+                      min="0"
+                      max="20"
+                      step="1"
+                      value={rubric.maxSpatter || 0}
+                      onChange={(e) => handleChange('maxSpatter', e.target.value)}
+                      className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-industrial-orange"
+                      title="Max Allowed Spatter"
+                    />
+                    <span className="w-12 text-center bg-slate-900 py-1 rounded border border-slate-600 font-mono">
+                      {rubric.maxSpatter || 0}
+                    </span>
                   </div>
-                  <div>
-                     <label className="block text-sm font-medium text-slate-400 mb-2">Max Allowed Spatter Count</label>
-                     <div className="flex items-center space-x-4">
-                        <input 
-                          type="range" 
-                          min="0" 
-                          max="20" 
-                          step="1"
-                          value={rubric.maxSpatter || 0}
-                          onChange={(e) => handleChange('maxSpatter', e.target.value)}
-                          className="flex-1 h-2 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-industrial-orange"
-                          title="Max Allowed Spatter"
-                        />
-                        <span className="w-12 text-center bg-slate-900 py-1 rounded border border-slate-600 font-mono">
-                          {rubric.maxSpatter || 0}
-                        </span>
-                     </div>
-                     <p className="text-xs text-slate-500 mt-2">
-                       Spatter tolerance is higher for training but strictly 0 for critical components.
-                     </p>
-                  </div>
+                  <p className="text-xs text-slate-500 mt-2">
+                    Spatter tolerance is higher for training but strictly 0 for critical components.
+                  </p>
                 </div>
-             </div>
-           </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-const ScannerView = ({ 
-  students, 
+const EvaluationView = ({
+  students,
   rubric,
-  onScanComplete 
-}: { 
-  students: Student[], 
+  onScanComplete
+}: {
+  students: Student[],
   rubric: RubricConfig,
-  onScanComplete: (res: ScanResult) => void 
+  onScanComplete: (res: ScanResult) => void
 }) => {
   const [selectedStudentId, setSelectedStudentId] = useState<number | ''>('');
   const [isScanning, setIsScanning] = useState(false);
@@ -1189,7 +1309,7 @@ const ScannerView = ({
       {/* Left Col: Controls & Live Feed */}
       <div className="lg:col-span-2 space-y-4">
         <div className="flex gap-4">
-           <select 
+          <select
             className="flex-1 bg-slate-800 border border-slate-600 text-white p-3 rounded-xl focus:ring-2 focus:ring-industrial-blue outline-none"
             title="Select Student"
             value={selectedStudentId}
@@ -1203,11 +1323,10 @@ const ScannerView = ({
           <button
             disabled={!selectedStudentId || isScanning}
             onClick={handleScan}
-            className={`px-8 py-3 rounded-xl font-bold uppercase tracking-wider shadow-lg flex items-center transition-all ${
-              !selectedStudentId || isScanning
-                ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
-                : 'bg-industrial-blue hover:bg-sky-400 text-white hover:scale-105 active:scale-95'
-            }`}
+            className={`px-8 py-3 rounded-xl font-bold uppercase tracking-wider shadow-lg flex items-center transition-all ${!selectedStudentId || isScanning
+              ? 'bg-slate-700 text-slate-500 cursor-not-allowed'
+              : 'bg-industrial-blue hover:bg-sky-400 text-white hover:scale-105 active:scale-95'
+              }`}
           >
             {isScanning ? (
               <>
@@ -1224,10 +1343,10 @@ const ScannerView = ({
         <div className="relative aspect-video bg-black rounded-2xl overflow-hidden border-2 border-slate-700 shadow-2xl">
           {/* ROI Overlay */}
           <div className="absolute inset-0 pointer-events-none z-10 opacity-30">
-             <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[20%] border-2 border-dashed border-industrial-warning"></div>
-             <div className="absolute bottom-4 right-4 text-industrial-warning font-mono text-xs">STEREO_CAM_ACTIVE</div>
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[80%] h-[20%] border-2 border-dashed border-industrial-warning"></div>
+            <div className="absolute bottom-4 right-4 text-industrial-warning font-mono text-xs">STEREO_CAM_ACTIVE</div>
           </div>
-          
+
           {isScanning ? (
             <div className="absolute inset-0 flex flex-col items-center justify-center bg-slate-900 z-20">
               <div className="w-16 h-16 border-4 border-industrial-blue border-t-transparent rounded-full animate-spin mb-4"></div>
@@ -1235,9 +1354,9 @@ const ScannerView = ({
               <div className="text-slate-500 text-xs mt-2 font-mono">Running hobot_dnn.py</div>
             </div>
           ) : (
-            <img 
-              src={result ? result.image_path : CAMERA_FEED_PLACEHOLDER} 
-              alt="Live Feed" 
+            <img
+              src={result ? result.image_path : CAMERA_FEED_PLACEHOLDER}
+              alt="Live Feed"
               className="w-full h-full object-cover opacity-80"
             />
           )}
@@ -1258,72 +1377,70 @@ const ScannerView = ({
             {/* Total Score */}
             <div className="text-center p-4 bg-slate-900 rounded-xl border border-slate-700">
               <span className="text-slate-400 text-sm uppercase tracking-wider">Overall Grade</span>
-              <div className={`text-5xl font-black mt-2 ${
-                result.status === 'Pass' ? 'text-industrial-success' : 'text-industrial-danger'
-              }`}>
+              <div className={`text-5xl font-black mt-2 ${result.status === 'Pass' ? 'text-industrial-success' : 'text-industrial-danger'
+                }`}>
                 {result.total_score}
               </div>
-              <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-2 ${
-                 result.status === 'Pass' ? 'bg-industrial-success/20 text-industrial-success' : 'bg-industrial-danger/20 text-industrial-danger'
-              }`}>
+              <div className={`inline-block px-3 py-1 rounded-full text-xs font-bold mt-2 ${result.status === 'Pass' ? 'bg-industrial-success/20 text-industrial-success' : 'bg-industrial-danger/20 text-industrial-danger'
+                }`}>
                 {result.status.toUpperCase()}
               </div>
             </div>
 
             {/* Metrics Grid */}
             <div className="space-y-4">
-              <MetricCard 
-                label="Bead Width" 
-                value={result.metrics.width_val} 
-                unit="mm" 
+              <MetricCard
+                label="Bead Width"
+                value={result.metrics.width_val}
+                unit="mm"
                 status={
                   Math.abs(result.metrics.width_val - rubric.targetWidth) <= rubric.widthTolerance ? 'success' : 'error'
                 }
-                subtext={`Target: ${rubric.targetWidth}mm ±${rubric.widthTolerance}`}
+                subtext={`Target: ${rubric.targetWidth}mm Â±${rubric.widthTolerance}`}
               />
-              <MetricCard 
-                label="Reinforcement Height" 
-                value={result.metrics.height_val} 
-                unit="mm" 
+              <MetricCard
+                label="Reinforcement Height"
+                value={result.metrics.height_val}
+                unit="mm"
                 status={
                   Math.abs(result.metrics.height_val - rubric.targetHeight) <= rubric.heightTolerance ? 'success' : 'error'
                 }
-                subtext={`Target: ${rubric.targetHeight}mm ±${rubric.heightTolerance}`}
+                subtext={`Target: ${rubric.targetHeight}mm Â±${rubric.heightTolerance}`}
               />
-               <MetricCard 
-                label="Spatter Count" 
-                value={result.metrics.spatter_count} 
-                unit="" 
+              <MetricCard
+                label="Spatter Count"
+                value={result.metrics.spatter_count}
+                unit=""
                 status={
                   result.metrics.spatter_count <= (rubric.maxSpatter || 0) ? 'success' : 'warning'
                 }
                 subtext={`Max Allowed: ${rubric.maxSpatter || 0}`}
               />
-              <MetricCard 
-                label="Defects Found" 
-                value={result.defects_json.length} 
+              <MetricCard
+                label="Defects Found"
+                value={result.defects_json.length}
                 unit=""
                 status={result.defects_json.length === 0 ? 'success' : 'error'}
                 subtext={result.defects_json.length > 0 ? result.defects_json.join(', ') : 'None detected'}
               />
             </div>
-            
+
             <div className="p-4 bg-slate-900 rounded-xl">
-               <h4 className="text-xs text-slate-500 uppercase mb-2">Bead Uniformity Profile</h4>
-               {/* Tiny chart to visualize uniformity */}
-               <div className="h-20 w-full">
-                  <ResponsiveContainer>
-                    <BarChart data={[
-                        {v: result.metrics.width_val * 0.9}, 
-                        {v: result.metrics.width_val}, 
-                        {v: result.metrics.width_val * 1.1},
-                        {v: result.metrics.width_val},
-                        {v: result.metrics.width_val * 0.95}
-                        ]}>
-                        <Bar dataKey="v" fill={result.metrics.uniformity_score > 0.8 ? '#22c55e' : '#f97316'} radius={[2,2,0,0]} />
-                    </BarChart>
-                  </ResponsiveContainer>
-               </div>
+              <h4 className="text-xs text-slate-500 uppercase mb-2">Bead Uniformity Profile</h4>
+              {/* Tiny chart to visualize uniformity */}
+              <div className="h-20 w-full">
+                <ResponsiveContainer>
+                  <BarChart data={[
+                    { v: result.metrics.width_val * 0.9 },
+                    { v: result.metrics.width_val },
+                    { v: result.metrics.width_val * 1.1 },
+                    { v: result.metrics.width_val },
+                    { v: result.metrics.width_val * 0.95 }
+                  ]}>
+                    <Bar dataKey="v" fill={result.metrics.uniformity_score > 0.8 ? '#22c55e' : '#f97316'} radius={[2, 2, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
             </div>
 
           </div>
@@ -1333,13 +1450,15 @@ const ScannerView = ({
   );
 };
 
-const StudentsView = ({ 
-  students, 
+const StudentsView = ({
+  students,
+  classes,
   onAddStudent,
   onUpdateStudent,
   onDeleteStudent
-}: { 
-  students: Student[], 
+}: {
+  students: Student[],
+  classes: Class[],
   onAddStudent: (student: Omit<Student, 'id'>) => Promise<void>,
   onUpdateStudent: (id: number, student: Partial<Student>) => Promise<void>,
   onDeleteStudent: (id: number) => Promise<void>
@@ -1348,30 +1467,36 @@ const StudentsView = ({
   const [editingId, setEditingId] = useState<number | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [studentToDelete, setStudentToDelete] = useState<Student | null>(null);
-  
+  const [filterClassId, setFilterClassId] = useState<number | ''>('');
+
   const [formData, setFormData] = useState({
     name: '',
     student_id: '',
-    class_name: '',
+    class_id: '' as number | '',
     level: 'Novice' as Student['level']
   });
-  
-  const [errors, setErrors] = useState<{name?: string, student_id?: string, class_name?: string}>({});
+
+  const [errors, setErrors] = useState<{ name?: string, student_id?: string, class_id?: string }>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // Filter students by class
+  const filteredStudents = filterClassId
+    ? students.filter(s => s.class_enrolled === filterClassId)
+    : students;
+
   const resetForm = () => {
-    setFormData({ name: '', student_id: '', class_name: '', level: 'Novice' });
+    setFormData({ name: '', student_id: '', class_id: '', level: 'Novice' });
     setErrors({});
     setEditingId(null);
     setIsFormOpen(false);
   };
 
   const handleEditClick = (student: Student, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent row selection when clicking edit
+    e.stopPropagation();
     setFormData({
       name: student.name,
       student_id: student.student_id,
-      class_name: student.class_name,
+      class_id: student.class_enrolled || '',
       level: student.level
     });
     setErrors({});
@@ -1386,16 +1511,16 @@ const StudentsView = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    
+
     // Validation
-    const newErrors: {name?: string, student_id?: string, class_name?: string} = {};
-    
+    const newErrors: { name?: string, student_id?: string, class_id?: string } = {};
+
     if (!formData.name.trim()) newErrors.name = "Full Name is required";
     if (!formData.student_id.trim()) newErrors.student_id = "Student ID is required";
-    if (!formData.class_name.trim()) newErrors.class_name = "Class Name is required";
-    
-    const duplicate = students.find(s => 
-      s.student_id.trim().toLowerCase() === formData.student_id.trim().toLowerCase() && 
+    if (!formData.class_id) newErrors.class_id = "Class is required";
+
+    const duplicate = students.find(s =>
+      s.student_id.trim().toLowerCase() === formData.student_id.trim().toLowerCase() &&
       s.id !== editingId
     );
     if (duplicate) {
@@ -1437,33 +1562,48 @@ const StudentsView = ({
   return (
     <div className="space-y-6 relative">
       <div className="flex justify-between items-center">
-        <h2 className="text-2xl font-bold text-white">Student Roster</h2>
-        <button 
-          onClick={() => {
-            if (isFormOpen) {
-              resetForm();
-            } else {
-              setIsFormOpen(true);
-            }
-          }}
-          className={`flex items-center px-4 py-2 rounded-lg transition-colors ${
-            isFormOpen 
-              ? 'bg-slate-700 text-slate-300 hover:bg-slate-600' 
+        <div>
+          <h2 className="text-2xl font-bold text-white">Student Roster</h2>
+          <p className="text-slate-400 text-sm mt-1">{filteredStudents.length} student{filteredStudents.length !== 1 ? 's' : ''} {filterClassId ? 'in selected class' : 'total'}</p>
+        </div>
+        <div className="flex items-center gap-3">
+          <select
+            value={filterClassId}
+            onChange={(e) => setFilterClassId(e.target.value ? Number(e.target.value) : '')}
+            className="bg-slate-800 border border-slate-600 text-white px-4 py-2 rounded-lg focus:ring-2 focus:ring-industrial-blue outline-none"
+            title="Filter by Class"
+          >
+            <option value="">All Classes</option>
+            {classes.map(cls => (
+              <option key={cls.id} value={cls.id}>{cls.name}</option>
+            ))}
+          </select>
+          <button
+            onClick={() => {
+              if (isFormOpen) {
+                resetForm();
+              } else {
+                setIsFormOpen(true);
+              }
+            }}
+            className={`flex items-center px-4 py-2 rounded-lg transition-colors ${isFormOpen
+              ? 'bg-slate-700 text-slate-300 hover:bg-slate-600'
               : 'bg-industrial-blue hover:bg-sky-400 text-white'
-          }`}
-        >
-          {isFormOpen ? (
-            <>
-              <XCircle className="w-4 h-4 mr-2" />
-              Cancel
-            </>
-          ) : (
-            <>
-              <Plus className="w-4 h-4 mr-2" />
-              Add Student
-            </>
-          )}
-        </button>
+              }`}
+          >
+            {isFormOpen ? (
+              <>
+                <XCircle className="w-4 h-4 mr-2" />
+                Cancel
+              </>
+            ) : (
+              <>
+                <Plus className="w-4 h-4 mr-2" />
+                Add Student
+              </>
+            )}
+          </button>
+        </div>
       </div>
 
       {isFormOpen && (
@@ -1475,10 +1615,10 @@ const StudentsView = ({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">Full Name</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={formData.name}
-                  onChange={e => setFormData({...formData, name: e.target.value})}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
                   className={`w-full bg-slate-900 border rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none transition-all placeholder:text-slate-600 ${errors.name ? 'border-industrial-danger' : 'border-slate-600'}`}
                   placeholder="e.g. Alex Worker"
                 />
@@ -1486,10 +1626,10 @@ const StudentsView = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">Student ID</label>
-                <input 
-                  type="text" 
+                <input
+                  type="text"
                   value={formData.student_id}
-                  onChange={e => setFormData({...formData, student_id: e.target.value})}
+                  onChange={e => setFormData({ ...formData, student_id: e.target.value })}
                   className={`w-full bg-slate-900 border rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none transition-all placeholder:text-slate-600 ${errors.student_id ? 'border-industrial-danger' : 'border-slate-600'}`}
                   placeholder="e.g. S-2024-001"
                 />
@@ -1497,21 +1637,25 @@ const StudentsView = ({
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">Class</label>
-                <input 
-                  type="text" 
-                  value={formData.class_name}
-                  onChange={e => setFormData({...formData, class_name: e.target.value})}
-                  className={`w-full bg-slate-900 border rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none transition-all placeholder:text-slate-600 ${errors.class_name ? 'border-industrial-danger' : 'border-slate-600'}`}
-                  placeholder="e.g. Welding Basics 101"
-                />
-                {errors.class_name && <p className="text-industrial-danger text-xs mt-1">{errors.class_name}</p>}
+                <select
+                  value={formData.class_id}
+                  onChange={e => setFormData({ ...formData, class_id: e.target.value ? Number(e.target.value) : '' })}
+                  className={`w-full bg-slate-900 border rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none transition-all ${errors.class_id ? 'border-industrial-danger' : 'border-slate-600'}`}
+                  title="Select Class"
+                >
+                  <option value="">-- Select Class --</option>
+                  {classes.map(cls => (
+                    <option key={cls.id} value={cls.id}>{cls.name} ({cls.lecturer})</option>
+                  ))}
+                </select>
+                {errors.class_id && <p className="text-industrial-danger text-xs mt-1">{errors.class_id}</p>}
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-400 mb-1">Skill Level</label>
-                <select 
+                <select
                   title="Skill Level"
                   value={formData.level}
-                  onChange={e => setFormData({...formData, level: e.target.value as any})}
+                  onChange={e => setFormData({ ...formData, level: e.target.value as any })}
                   className="w-full bg-slate-900 border border-slate-600 rounded-lg px-4 py-2.5 text-white focus:ring-2 focus:ring-industrial-blue outline-none transition-all appearance-none"
                 >
                   <option value="Novice">Novice</option>
@@ -1521,8 +1665,8 @@ const StudentsView = ({
               </div>
             </div>
             <div className="flex justify-end pt-4">
-              <button 
-                type="submit" 
+              <button
+                type="submit"
                 disabled={isSubmitting}
                 className="bg-industrial-success hover:bg-green-600 text-white px-6 py-2.5 rounded-lg font-bold transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center shadow-lg hover:shadow-green-900/20"
               >
@@ -1542,7 +1686,7 @@ const StudentsView = ({
           </form>
         </div>
       )}
-      
+
       <div className="bg-slate-800 rounded-2xl border border-slate-700 overflow-hidden">
         <table className="w-full text-left">
           <thead className="bg-slate-900 border-b border-slate-700">
@@ -1555,46 +1699,52 @@ const StudentsView = ({
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-700">
-            {students.map(student => (
-              <tr 
-                key={student.id} 
-                onClick={() => setSelectedId(selectedId === student.id ? null : student.id)}
-                className={`transition-all duration-200 cursor-pointer ${
-                  editingId === student.id || selectedId === student.id
-                    ? 'bg-industrial-blue/10 border-l-2 border-industrial-blue' 
-                    : 'hover:bg-slate-800 border-l-2 border-transparent'
-                }`}
-              >
-                <td className="p-4 text-white font-mono">{student.student_id}</td>
-                <td className="p-4 text-white font-medium">{student.name}</td>
-                <td className="p-4 text-slate-300">{student.class_name}</td>
-                <td className="p-4">
-                  <span className={`px-2 py-1 rounded text-xs font-bold ${
-                    student.level === 'Advanced' ? 'bg-purple-500/20 text-purple-400' :
-                    student.level === 'Intermediate' ? 'bg-blue-500/20 text-blue-400' :
-                    'bg-slate-500/20 text-slate-400'
-                  }`}>
-                    {student.level}
-                  </span>
-                </td>
-                <td className="p-4">
-                  <button 
-                    onClick={(e) => handleEditClick(student, e)}
-                    className="text-slate-400 hover:text-white mr-3 transition-colors"
-                    title="Edit Student"
-                  >
-                    <Pencil className="w-4 h-4" />
-                  </button>
-                  <button 
-                    onClick={(e) => handleDeleteClick(student, e)}
-                    className="text-industrial-danger hover:text-red-400 transition-colors"
-                    title="Delete Student"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+            {filteredStudents.length === 0 ? (
+              <tr>
+                <td colSpan={5} className="p-8 text-center text-slate-500">
+                  {filterClassId ? 'No students in this class' : 'No students registered yet'}
                 </td>
               </tr>
-            ))}
+            ) : (
+              filteredStudents.map(student => (
+                <tr
+                  key={student.id}
+                  onClick={() => setSelectedId(selectedId === student.id ? null : student.id)}
+                  className={`transition-all duration-200 cursor-pointer ${editingId === student.id || selectedId === student.id
+                    ? 'bg-industrial-blue/10 border-l-2 border-industrial-blue'
+                    : 'hover:bg-slate-800 border-l-2 border-transparent'
+                    }`}
+                >
+                  <td className="p-4 text-white font-mono">{student.student_id}</td>
+                  <td className="p-4 text-white font-medium">{student.name}</td>
+                  <td className="p-4 text-slate-300">{student.class_name}</td>
+                  <td className="p-4">
+                    <span className={`px-2 py-1 rounded text-xs font-bold ${student.level === 'Advanced' ? 'bg-purple-500/20 text-purple-400' :
+                      student.level === 'Intermediate' ? 'bg-blue-500/20 text-blue-400' :
+                        'bg-slate-500/20 text-slate-400'
+                      }`}>
+                      {student.level}
+                    </span>
+                  </td>
+                  <td className="p-4">
+                    <button
+                      onClick={(e) => handleEditClick(student, e)}
+                      className="text-slate-400 hover:text-white mr-3 transition-colors"
+                      title="Edit Student"
+                    >
+                      <Pencil className="w-4 h-4" />
+                    </button>
+                    <button
+                      onClick={(e) => handleDeleteClick(student, e)}
+                      className="text-industrial-danger hover:text-red-400 transition-colors"
+                      title="Delete Student"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
           </tbody>
         </table>
       </div>
@@ -1608,17 +1758,17 @@ const StudentsView = ({
               <h3 className="text-xl font-bold">Confirm Deletion</h3>
             </div>
             <p className="text-slate-300 mb-6">
-              Are you sure you want to remove <span className="font-bold text-white">{studentToDelete.name}</span>? 
+              Are you sure you want to remove <span className="font-bold text-white">{studentToDelete.name}</span>?
               This action cannot be undone and will remove all associated scan history.
             </p>
             <div className="flex justify-end space-x-3">
-              <button 
+              <button
                 onClick={() => setStudentToDelete(null)}
                 className="px-4 py-2 rounded-lg bg-slate-700 text-white hover:bg-slate-600 transition-colors font-medium"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={confirmDelete}
                 className="px-4 py-2 rounded-lg bg-industrial-danger text-white hover:bg-red-600 transition-colors font-medium"
               >
@@ -1637,36 +1787,106 @@ const StudentsView = ({
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>(ViewState.DASHBOARD);
   const [students, setStudents] = useState<Student[]>([]);
+  const [classes, setClasses] = useState<Class[]>([]);
   const [scans, setScans] = useState<ScanResult[]>([]);
   const [rubric, setRubric] = useState<RubricConfig>(RUBRIC_PRESETS['Standard']);
   const [loading, setLoading] = useState(true);
   const [guideOpen, setGuideOpen] = useState(false);
-  
+
   // Inference Monitor State
   const [inferenceRunning, setInferenceRunning] = useState(false);
   const [latestInferenceResult, setLatestInferenceResult] = useState<any>(null);
   const [desktopConnected, setDesktopConnected] = useState(false);
 
-  // Initial Data Load
+  // Initial Data Load with Backend Health Check
   useEffect(() => {
-    const init = async () => {
+    const checkBackendAndInit = async () => {
       setLoading(true);
+
+      // Check if backend is running
       try {
-        const [loadedStudents, loadedHistory, loadedRubric] = await Promise.all([
+        const healthCheck = await fetch('/api/health', {
+          method: 'GET',
+          signal: AbortSignal.timeout(3000) // 3 second timeout
+        });
+
+        if (!healthCheck.ok) {
+          throw new Error('Backend health check failed');
+        }
+      } catch (backendError) {
+        console.error('Backend not responding:', backendError);
+
+        // Check if running in Electron
+        const isElectron = window.electronAPI !== undefined;
+
+        let message = 'âš ï¸ Backend Server Not Running\n\n' +
+          'The backend server is not responding. The application needs the backend to function properly.\n\n';
+
+        if (isElectron) {
+          message += 'ðŸš€ Click OK to start the backend automatically\n' +
+            'Click Cancel to continue without backend (limited functionality)';
+        } else {
+          message += 'ðŸš€ To start the backend:\n' +
+            '   1. Open a terminal\n' +
+            '   2. Run: cd desktop_server\n' +
+            '   3. Run: .\\.venv\\Scripts\\python manage.py runserver 0.0.0.0:8000\n\n' +
+            'Or use the start scripts: start.ps1 or start.bat\n\n' +
+            'Click OK to continue anyway (limited functionality)\n' +
+            'Click Cancel to close the application';
+        }
+
+        const userChoice = window.confirm(message);
+
+        if (userChoice && isElectron) {
+          // Electron: Start backend automatically
+          try {
+            console.log('Starting backend via Electron API...');
+            const result = await window.electronAPI!.startBackend();
+
+            if (result.success) {
+              console.log('Backend started successfully:', result.message);
+              alert('âœ… Backend Started\n\nThe backend server is now running. Loading application data...');
+            } else {
+              console.error('Failed to start backend:', result.message);
+              alert(`âŒ Failed to Start Backend\n\n${result.message}\n\nPlease start it manually:\n   cd desktop_server\n   .\\.venv\\Scripts\\python manage.py runserver 0.0.0.0:8000`);
+            }
+          } catch (error) {
+            console.error('Error starting backend:', error);
+            alert('âŒ Error starting backend. Please start it manually.');
+          }
+        } else if (!userChoice) {
+          // User clicked Cancel
+          if (isElectron) {
+            // In Electron, just continue without backend
+            console.log('User chose to continue without backend');
+          } else {
+            // In browser, close is not possible, so just continue
+            console.log('User chose to close, but window.close() may not work in browser');
+            window.close();
+            return;
+          }
+        }
+      }
+
+      // Continue with normal initialization
+      try {
+        const [loadedStudents, loadedHistory, loadedRubric, loadedClasses] = await Promise.all([
           fetchStudents(),
           fetchHistory(),
-          getRubric()
+          getRubric(),
+          fetchClasses()
         ]);
         setStudents(loadedStudents);
         setScans(loadedHistory);
         setRubric(loadedRubric);
+        setClasses(loadedClasses);
       } catch (e) {
         console.error("Failed to load initial data", e);
       } finally {
         setLoading(false);
       }
     };
-    init();
+    checkBackendAndInit();
   }, []);
 
   const handleScanComplete = useCallback((newScan: ScanResult) => {
@@ -1700,6 +1920,33 @@ const App: React.FC = () => {
     }
   };
 
+  const handleAddClass = async (classData: Omit<Class, 'id' | 'created_at' | 'updated_at'>) => {
+    try {
+      const newClass = await addClass(classData);
+      setClasses(prev => [...prev, newClass]);
+    } catch (e) {
+      console.error("Failed to add class", e);
+    }
+  };
+
+  const handleUpdateClass = async (id: number, updates: Partial<Class>) => {
+    try {
+      const updated = await updateClass(id, updates);
+      setClasses(prev => prev.map(c => c.id === id ? updated : c));
+    } catch (e) {
+      console.error("Failed to update class", e);
+    }
+  };
+
+  const handleDeleteClass = async (id: number) => {
+    try {
+      await deleteClass(id);
+      setClasses(prev => prev.filter(c => c.id !== id));
+    } catch (e) {
+      console.error("Failed to delete class", e);
+    }
+  };
+
   const handleSaveRubric = async (newRubric: RubricConfig) => {
     try {
       const saved = await saveRubric(newRubric);
@@ -1718,25 +1965,52 @@ const App: React.FC = () => {
       const deviceHost = settings.deviceHost || 'rdk-x5.local';
       const deviceUser = settings.deviceUser || 'root';
       const modelBin = settings.outputDir ? `${settings.outputDir}\\model.bin` : '';
-      
+
       const result = await fetch('/api/inference/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rdkIp: deviceHost, user: deviceUser, modelBin })
       });
-      
-      const data = await result.json();
-      
+
+      // Try to parse JSON response, but handle errors gracefully
+      let data: any = {};
+      try {
+        data = await result.json();
+      } catch (jsonError) {
+        console.warn('Failed to parse JSON response:', jsonError);
+      }
+
       if (result.status === 501) {
-        // Not implemented - show helpful error
-        alert(`Inference Not Available\n\n${data.message}\n\nDetails: ${data.details}`);
+        // Not implemented - PyTorch not installed
+        const message = data.message || 'Inference feature is not available';
+        const details = data.details || 'Install PyTorch: pip install torch torchvision ultralytics';
+        alert(`âš ï¸ Inference Not Available\n\n${message}\n\nðŸ“¦ ${details}`);
+        setInferenceRunning(false);
+      } else if (result.status === 500) {
+        // Backend error
+        const errorMsg = data.error || data.message || 'Backend server error';
+        alert(`âŒ Backend Error\n\n${errorMsg}\n\nðŸ’¡ Check that:\nâ€¢ Django Brain is running (npm run start)\nâ€¢ The API is reachable at http://localhost:8000\nâ€¢ RDK device is accessible`);
         setInferenceRunning(false);
       } else if (!result.ok) {
-        throw new Error(data.error || 'Failed to start inference');
+        // Other errors
+        const errorMsg = data.error || data.message || `HTTP ${result.status}: ${result.statusText}`;
+        alert(`âŒ Failed to Start Inference\n\n${errorMsg}\n\nðŸ” Troubleshooting:\nâ€¢ Check backend logs\nâ€¢ Verify RDK connection (${deviceHost})\nâ€¢ Ensure model file exists: ${modelBin || 'Not specified'}`);
+        setInferenceRunning(false);
+      } else {
+        // Success
+        console.log('Inference started successfully');
       }
     } catch (error: any) {
       console.error('Failed to start inference:', error);
-      alert(`Failed to start inference: ${error.message}`);
+      let errorMessage = error.message || 'Unknown error';
+
+      if (error.message?.includes('fetch')) {
+        errorMessage = `Cannot connect to backend server\n\nðŸ’¡ Make sure backend is running:\n   cd backend\n   python app.py`;
+      } else if (error.message?.includes('JSON')) {
+        errorMessage = `Invalid response from backend\n\nðŸ’¡ Check backend logs for errors`;
+      }
+
+      alert(`âŒ Failed to Start Inference\n\n${errorMessage}`);
       setInferenceRunning(false);
     }
   };
@@ -1746,23 +2020,34 @@ const App: React.FC = () => {
       const settings = JSON.parse(localStorage.getItem('orchestrationSettings') || '{}');
       const deviceHost = settings.deviceHost || 'rdk-x5.local';
       const deviceUser = settings.deviceUser || 'root';
-      
+
       const result = await fetch('/api/inference/stop', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rdkIp: deviceHost, user: deviceUser })
       });
-      
-      if (!result.ok) {
-        const data = await result.json();
-        throw new Error(data.error || 'Failed to stop inference');
+
+      // Try to parse JSON response, but handle errors gracefully
+      let data: any = {};
+      try {
+        data = await result.json();
+      } catch (jsonError) {
+        console.warn('Failed to parse JSON response:', jsonError);
       }
-      
+
+      if (!result.ok) {
+        const errorMsg = data.error || data.message || `HTTP ${result.status}`;
+        throw new Error(errorMsg);
+      }
+
       setInferenceRunning(false);
       setLatestInferenceResult(null);
+      console.log('Inference stopped successfully');
     } catch (error: any) {
       console.error('Failed to stop inference:', error);
-      alert(`Failed to stop inference: ${error.message}`);
+      alert(`âŒ Failed to Stop Inference\n\n${error.message}\n\nðŸ’¡ Backend may not be responding`);
+      // Still set to false since we tried to stop
+      setInferenceRunning(false);
     }
   };
 
@@ -1775,9 +2060,9 @@ const App: React.FC = () => {
     return (
       <div className="h-screen w-screen bg-slate-950 flex items-center justify-center">
         <div className="flex flex-col items-center">
-           <Activity className="w-12 h-12 text-industrial-blue animate-bounce mb-4" />
-           <h2 className="text-white text-xl font-bold">Initializing RDK X5 System...</h2>
-           <p className="text-slate-500 mt-2">Connecting to ROS2 Nodes</p>
+          <Activity className="w-12 h-12 text-industrial-blue animate-bounce mb-4" />
+          <h2 className="text-white text-xl font-bold">Initializing RDK X5 System...</h2>
+          <p className="text-slate-500 mt-2">Connecting to ROS2 Nodes</p>
         </div>
       </div>
     );
@@ -1798,214 +2083,264 @@ const App: React.FC = () => {
         </div>
 
         <nav className="flex-1">
-          <SidebarItem 
-            icon={LayoutDashboard} 
-            label="Dashboard" 
-            active={view === ViewState.DASHBOARD} 
-            onClick={() => setView(ViewState.DASHBOARD)} 
+          <SidebarItem
+            icon={LayoutDashboard}
+            label="Dashboard"
+            active={view === ViewState.DASHBOARD}
+            onClick={() => setView(ViewState.DASHBOARD)}
           />
-          <SidebarItem 
-            icon={Camera} 
-            label="Live Scanner" 
-            active={view === ViewState.SCANNER} 
-            onClick={() => setView(ViewState.SCANNER)} 
+          <SidebarItem
+            icon={Camera}
+            label="Evaluation"
+            active={view === ViewState.EVALUATION}
+            onClick={() => setView(ViewState.EVALUATION)}
           />
-          <SidebarItem 
-            icon={Users} 
-            label="Students" 
-            active={view === ViewState.STUDENTS} 
-            onClick={() => setView(ViewState.STUDENTS)} 
+
+          {/* Class Management Section */}
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mt-4 mb-3">Class Management</p>
+          <SidebarItem
+            icon={GraduationCap}
+            label="Classes"
+            active={view === ViewState.CLASSES}
+            onClick={() => setView(ViewState.CLASSES)}
           />
-          <SidebarItem 
-            icon={History} 
-            label="Scan History" 
-            active={view === ViewState.HISTORY} 
-            onClick={() => setView(ViewState.HISTORY)} 
+          <SidebarItem
+            icon={Users}
+            label="Students"
+            active={view === ViewState.STUDENTS}
+            onClick={() => setView(ViewState.STUDENTS)}
+          />
+
+          <SidebarItem
+            icon={History}
+            label="Scan History"
+            active={view === ViewState.HISTORY}
+            onClick={() => setView(ViewState.HISTORY)}
           />
 
           {/* Features */}
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mt-4 mb-3">Features</p>
-          <SidebarItem 
-            icon={Settings} 
-            label="Manual Calibration" 
-            active={view === ViewState.MANUAL_BED_CALIBRATION} 
-            onClick={() => setView(ViewState.MANUAL_BED_CALIBRATION)} 
+          <SidebarItem
+            icon={Settings}
+            label="Manual Calibration"
+            active={view === ViewState.MANUAL_BED_CALIBRATION}
+            onClick={() => setView(ViewState.MANUAL_BED_CALIBRATION)}
           />
 
           {/* Common Settings */}
           <div className="mt-4 pt-4 border-t border-slate-800">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider px-2 mb-3">AI & Training</p>
-            <SidebarItem 
-              icon={Brain} 
-              label="Inference Monitor" 
-              active={view === ViewState.INFERENCE_MONITOR} 
-              onClick={() => setView(ViewState.INFERENCE_MONITOR)} 
+            <SidebarItem
+              icon={Brain}
+              label="Inference Monitor"
+              active={view === ViewState.INFERENCE_MONITOR}
+              onClick={() => setView(ViewState.INFERENCE_MONITOR)}
             />
-            <SidebarItem 
-              icon={Sparkles} 
-              label="Model Training" 
-              active={view === ViewState.TRAINING_DASHBOARD} 
-              onClick={() => setView(ViewState.TRAINING_DASHBOARD)} 
+            <SidebarItem
+              icon={Sparkles}
+              label="Model Training"
+              active={view === ViewState.TRAINING_DASHBOARD}
+              onClick={() => setView(ViewState.TRAINING_DASHBOARD)}
             />
-            <SidebarItem 
-              icon={Database} 
-              label="Dataset Studio" 
-              active={view === ViewState.DATASET_STUDIO} 
-              onClick={() => setView(ViewState.DATASET_STUDIO)} 
+            <SidebarItem
+              icon={Database}
+              label="Dataset Studio"
+              active={view === ViewState.DATASET_STUDIO}
+              onClick={() => setView(ViewState.DATASET_STUDIO)}
             />
-            <SidebarItem 
-              icon={BarChart3} 
-              label="Model Management" 
-              active={view === ViewState.MODEL_MANAGEMENT} 
-              onClick={() => setView(ViewState.MODEL_MANAGEMENT)} 
+            <SidebarItem
+              icon={BarChart3}
+              label="Model Management"
+              active={view === ViewState.MODEL_MANAGEMENT}
+              onClick={() => setView(ViewState.MODEL_MANAGEMENT)}
             />
           </div>
 
           {/* Settings */}
           <div className="mt-4 pt-4 border-t border-slate-800">
-            <SidebarItem 
-              icon={Settings} 
-              label="Settings" 
-              active={view === ViewState.SETTINGS} 
-              onClick={() => setView(ViewState.SETTINGS)} 
+            <SidebarItem
+              icon={Camera}
+              label="RDK Control"
+              active={view === ViewState.RDK_CONTROL}
+              onClick={() => setView(ViewState.RDK_CONTROL)}
+            />
+            <SidebarItem
+              icon={Settings}
+              label="Settings"
+              active={view === ViewState.SETTINGS}
+              onClick={() => setView(ViewState.SETTINGS)}
             />
           </div>
         </nav>
 
         <button
-            onClick={() => setGuideOpen(true)}
-            className="flex items-center w-full p-3 mb-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium"
-            title="Open help and user guide"
-            aria-label="Help and documentation"
-          >
-            <HelpCircle className="w-5 h-5 mr-3" />
-            <span className="font-medium">Help & Guide</span>
-          </button>
+          onClick={() => setGuideOpen(true)}
+          className="flex items-center w-full p-3 mb-2 rounded-lg text-slate-400 hover:bg-slate-800 hover:text-white transition-colors font-medium"
+          title="Open help and user guide"
+          aria-label="Help and documentation"
+        >
+          <HelpCircle className="w-5 h-5 mr-3" />
+          <span className="font-medium">Help & Guide</span>
+        </button>
 
-        <div className="mt-auto p-4 bg-slate-800 rounded-xl border border-slate-700">
-           <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-             <span>CPU Load</span>
-             <span>12%</span>
-           </div>
-           <div className="w-full bg-slate-700 h-1.5 rounded-full mb-3">
-             <div className="bg-industrial-success h-1.5 rounded-full w-[12%]"></div>
-           </div>
-           <div className="flex items-center justify-between text-xs text-slate-400 mb-2">
-             <span>BPU Load</span>
-             <span>0%</span>
-           </div>
-           <div className="w-full bg-slate-700 h-1.5 rounded-full">
-             <div className="bg-industrial-blue h-1.5 rounded-full w-[0%]"></div>
-           </div>
+        <div className="mt-auto p-4 bg-slate-800 rounded-xl border border-slate-700 space-y-3">
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>System Status</span>
+            <span className="flex items-center text-industrial-success">
+              <div className="w-2 h-2 bg-industrial-success rounded-full mr-1 animate-pulse"></div>
+              Online
+            </span>
+          </div>
+
+          <div className="flex items-center justify-between text-xs text-slate-400">
+            <span>BPU Load</span>
+            <span>0%</span>
+          </div>
+          <div className="w-full bg-slate-700 h-1.5 rounded-full">
+            <div className="bg-industrial-blue h-1.5 rounded-full w-[0%]"></div>
+          </div>
         </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto p-8 relative">
-        <header className="flex justify-between items-center mb-8">
-          <div>
-            <h2 className="text-2xl font-bold text-white">
-              {view === ViewState.DASHBOARD && 'Overview'}
-              {view === ViewState.SCANNER && 'Evaluation Station'}
-              {view === ViewState.STUDENTS && 'Class Management'}
-              {view === ViewState.HISTORY && 'Scan Archives'}
-              {view === ViewState.MANUAL_BED_CALIBRATION && 'Manual Calibration'}
-              {view === ViewState.STEREO_CALIBRATION && 'Stereo Camera Calibration'}
-              {view === ViewState.INFERENCE_MONITOR && 'Inference Monitor'}
-              {view === ViewState.TRAINING_DASHBOARD && 'Model Training'}
-              {view === ViewState.DATASET_STUDIO && 'Dataset Studio'}
-              {view === ViewState.MODEL_MANAGEMENT && 'Model Management'}
-              {view === ViewState.SETTINGS && 'System Configuration'}
-            </h2>
-            <p className="text-slate-400 text-sm mt-1">
-              {view === ViewState.SCANNER 
-                ? 'Place workpiece in ROI and stabilize before capturing.' 
-                : view === ViewState.INFERENCE_MONITOR
-                ? 'Real-time inference monitoring and statistics.'
-                : view === ViewState.TRAINING_DASHBOARD
+    <header className="flex justify-between items-center mb-8">
+      <div>
+        <h2 className="text-2xl font-bold text-white">
+          {view === ViewState.DASHBOARD && 'Overview'}
+          {view === ViewState.EVALUATION && 'Evaluation Station'}
+          {view === ViewState.STUDENTS && 'Student Management'}
+          {view === ViewState.CLASSES && 'Class Management'}
+          {view === ViewState.HISTORY && 'Scan Archives'}
+          {view === ViewState.MANUAL_BED_CALIBRATION && 'Manual Calibration'}
+          {view === ViewState.STEREO_CALIBRATION && 'Stereo Camera Calibration'}
+          {view === ViewState.INFERENCE_MONITOR && 'Inference Monitor'}
+          {view === ViewState.TRAINING_DASHBOARD && 'Model Training'}
+          {view === ViewState.DATASET_STUDIO && 'Dataset Studio'}
+          {view === ViewState.MODEL_MANAGEMENT && 'Model Management'}
+          {view === ViewState.RDK_CONTROL && 'RDK Control'}
+          {view === ViewState.SETTINGS && 'System Configuration'}
+        </h2>
+        <p className="text-slate-400 text-sm mt-1">
+          {view === ViewState.EVALUATION
+            ? 'Place workpiece in ROI and stabilize before capturing.'
+            : view === ViewState.INFERENCE_MONITOR
+              ? 'Real-time inference monitoring and statistics.'
+              : view === ViewState.TRAINING_DASHBOARD
                 ? 'Train models on desktop GPU for improved accuracy.'
                 : view === ViewState.DATASET_STUDIO
-                ? 'Capture and annotate images in one workspace.'
-                : view === ViewState.MODEL_MANAGEMENT
-                ? 'Manage, deploy, and compare trained models.'
-                : 'System Status: Nominal | Camera: Connected'}
-            </p>
-          </div>
-          <div className="flex items-center space-x-4">
-             <button 
-               onClick={() => setGuideOpen(true)}
-               className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors text-slate-300 hover:text-white"
-               title="Open user guide and help documentation"
-               aria-label="Open help guide"
-             >
-               <HelpCircle className="w-5 h-5" />
-               <span className="text-sm font-medium hidden sm:inline">Help</span>
-             </button>
-             <div className="flex items-center text-sm text-slate-400 bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700">
-               <div className="w-2 h-2 rounded-full bg-industrial-success mr-2 animate-pulse"></div>
-               ROS2 Active
-             </div>
-             <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
-               <Users className="w-5 h-5 text-slate-400" />
-             </div>
-          </div>
-        </header>
+                  ? 'Capture and annotate images in one workspace.'
+                  : view === ViewState.MODEL_MANAGEMENT
+                    ? 'Manage, deploy, and compare trained models.'
+                    : 'System Status: Nominal | Camera: Connected'}
+        </p>
+      </div>
+      <div className="flex items-center space-x-4">
+        <button
+          onClick={() => setGuideOpen(true)}
+          className="flex items-center space-x-2 px-4 py-2 rounded-lg bg-slate-800 hover:bg-slate-700 border border-slate-700 transition-colors text-slate-300 hover:text-white"
+          title="Open user guide and help documentation"
+          aria-label="Open help guide"
+        >
+          <HelpCircle className="w-5 h-5" />
+          <span className="text-sm font-medium hidden sm:inline">Help</span>
+        </button>
+        <div className="flex items-center text-sm text-slate-400 bg-slate-900 px-3 py-1.5 rounded-full border border-slate-700">
+          <div className="w-2 h-2 rounded-full bg-industrial-success mr-2 animate-pulse"></div>
+          ROS2 Active
+        </div>
+        <div className="w-10 h-10 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center">
+          <Users className="w-5 h-5 text-slate-400" />
+        </div>
+      </div>
+    </header>
 
-        {view === ViewState.DASHBOARD && (
-          <DashboardView scans={scans} students={students} onNavigate={setView} />
-        )}
-        {view === ViewState.SCANNER && (
-          <ScannerView students={students} rubric={rubric} onScanComplete={handleScanComplete} />
-        )}
-        {view === ViewState.STUDENTS && (
-          <StudentsView 
-            students={students} 
-            onAddStudent={handleAddStudent} 
-            onUpdateStudent={handleUpdateStudent}
-            onDeleteStudent={handleDeleteStudent}
-          />
-        )}
-        {view === ViewState.HISTORY && (
-          <HistoryView scans={scans} students={students} />
-        )}
-        {view === ViewState.MANUAL_BED_CALIBRATION && (
-          <ManualBedCalibration />
-        )}
-        {view === ViewState.STEREO_CALIBRATION && (
-          <StereoCameraCalibration />
-        )}
-        {view === ViewState.INFERENCE_MONITOR && (
-          <InferenceMonitor 
-            latestResult={latestInferenceResult}
-            isRunning={inferenceRunning}
-            onStart={handleStartInference}
-            onStop={handleStopInference}
-            desktopConnected={desktopConnected}
-            onToggleDesktop={handleToggleDesktop}
-          />
-        )}
-        {view === ViewState.TRAINING_DASHBOARD && (
-          <>
-            <TrainingDashboard />
-            <div className="mt-8">
-              <OrchestrationPanel />
-            </div>
-          </>
-        )}
-        {view === ViewState.DATASET_STUDIO && <DatasetStudio />}
-        {view === ViewState.MODEL_MANAGEMENT && (
-          <>
-            <ModelManagement />
-          </>
-        )}
-        {view === ViewState.SETTINGS && (
-          <SettingsView currentRubric={rubric} onSaveRubric={handleSaveRubric} />
-        )}
-      </main>
+{
+  view === ViewState.DASHBOARD && (
+    <DashboardView scans={scans} students={students} onNavigate={setView} />
+  )
+}
+{
+  view === ViewState.EVALUATION && (
+    <EvaluationView students={students} rubric={rubric} onScanComplete={handleScanComplete} />
+  )
+}
+{
+  view === ViewState.STUDENTS && (
+    <StudentsView
+      students={students}
+      classes={classes}
+      onAddStudent={handleAddStudent}
+      onUpdateStudent={handleUpdateStudent}
+      onDeleteStudent={handleDeleteStudent}
+    />
+  )
+}
+{
+  view === ViewState.CLASSES && (
+    <ClassManagement
+      classes={classes}
+      onAddClass={handleAddClass}
+      onUpdateClass={handleUpdateClass}
+      onDeleteClass={handleDeleteClass}
+    />
+  )
+}
+{
+  view === ViewState.HISTORY && (
+    <HistoryView scans={scans} students={students} />
+  )
+}
+{
+  view === ViewState.MANUAL_BED_CALIBRATION && (
+    <ManualBedCalibration />
+  )
+}
+{
+  view === ViewState.STEREO_CALIBRATION && (
+    <StereoCameraCalibration />
+  )
+}
+{
+  view === ViewState.INFERENCE_MONITOR && (
+    <InferenceMonitor
+      latestResult={latestInferenceResult}
+      isRunning={inferenceRunning}
+      onStart={handleStartInference}
+      onStop={handleStopInference}
+      desktopConnected={desktopConnected}
+      onToggleDesktop={handleToggleDesktop}
+    />
+  )
+}
+{
+  view === ViewState.TRAINING_DASHBOARD && (
+    <>
+      <TrainingDashboard />
+      <div className="mt-8">
+        <OrchestrationPanel />
+      </div>
+    </>
+  )
+}
+{ view === ViewState.DATASET_STUDIO && <DatasetStudio /> }
+{
+  view === ViewState.MODEL_MANAGEMENT && (
+    <>
+      <ModelManagement />
+    </>
+  )
+}
+{
+  view === ViewState.SETTINGS && (
+    <SettingsView currentRubric={rubric} onSaveRubric={handleSaveRubric} />
+  )
+}
+      </main >
 
-      {/* User Guide Modal */}
-      <UserGuide isOpen={guideOpen} onClose={() => setGuideOpen(false)} />
-    </div>
+  {/* User Guide Modal */ }
+  < UserGuide isOpen = { guideOpen } onClose = {() => setGuideOpen(false)} />
+    </div >
   );
 };
 

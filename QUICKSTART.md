@@ -1,81 +1,49 @@
-# Quick Start Guide - System Initialization & Hardware Checks
+# WeldMaster AI - Quick Start
 
-## ⚡ 30-Second Quick Start
+## Desktop Development (No RDK Required)
 
-### Step 1: Verify System
+### Start the Application
+
 ```bash
-python verify_startup.py
+# Install dependencies (first time only)
+npm install
+
+# Start Django + React
+npm run start
 ```
 
-### Step 2: Start Backend
-```bash
-cd backend
-python app.py
-```
-
-Expected output:
-```
-======================================================================
-Database: sqlite:///weld_data.db - EXISTS or CREATED
-RDK X5: DETECTED/NOT DETECTED
-ROS2: AVAILABLE/NOT AVAILABLE
-Camera: CONNECTED/NOT CONNECTED
-Ready for Operation: YES/NO
-======================================================================
-```
-
-### Step 3: Check Health (in new terminal)
-```bash
-curl http://localhost:5000/api/health
-```
+**Access the UI:** `http://localhost:3002`  
+**API Health Check:** `http://localhost:8000/api/health`
 
 ---
 
-## What Changed
+## What's Running
 
-### Automatic Database Setup ✅
-- No manual database creation needed
-- Auto-creates if missing: `weld_data.db`
-- All tables initialized on startup
-
-### Hardware Detection ✅
-- RDK X5 platform detection
-- ROS2 availability check
-- Camera connectivity verification
-- System information logging
-
-### Health Monitoring ✅
-- `/api/health` - System status
-- `/api/system/diagnostics` - Detailed info
-- Startup verification script
+- **Django Brain** (`localhost:8000`) - REST API, database, persistence
+- **React UI** (`localhost:3002`) - User interface, data visualization  
+- **SQLite Database** (`desktop_server/db.sqlite3`) - Students, scans, training jobs
 
 ---
 
-## Files Modified
+## What You Can Do (Desktop-Only Mode)
 
-```
-backend/
-├── app.py                    ✅ UPDATED
-│   └── Uses system_check.py for initialization
-│   └── Enhanced logging on startup
-│   └── New health endpoints
-│
-├── system_check.py          ✅ NEW
-│   ├── DatabaseManager class
-│   │   └── Auto-initialize database
-│   │
-│   ├── HardwareDetector class
-│   │   ├── Detect RDK X5
-│   │   ├── Detect ROS2
-│   │   ├── Detect camera
-│   │   └── Detect system info
-│   │
-│   └── setup_logging function
-│       └── Configure logging
-│
-└── weld_data.db             ✅ AUTO-CREATED
+✅ **Student Management** - Create and manage student records  
+✅ **Scan History** - View and analyze existing scans  
+✅ **Rubric Configuration** - Define grading criteria  
+✅ **Dataset Preparation** - Organize training data  
+✅ **UI Development** - Build features without hardware
 
-verify_startup.py            ✅ NEW
+---
+
+## Future: RDK Integration
+
+When ready to connect RDK X5:
+1. Configure RDK IP in UI Settings
+2. RDK streams MJPEG video (side-channel)
+3. Django persists scan results
+4. Training runs on desktop, inference on RDK
+
+---
 └── Pre-startup verification script
 
 SYSTEM_INIT_README.md        ✅ NEW

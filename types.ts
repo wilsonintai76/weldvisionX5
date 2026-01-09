@@ -1,8 +1,19 @@
+export interface Class {
+  id: number;
+  name: string;
+  lecturer: string;
+  created_at: string;
+  updated_at: string;
+  student_count?: number;
+}
+
 export interface Student {
   id: number;
   name: string;
   student_id: string; // unique
-  class_name: string;
+  class_enrolled?: number; // FK to Class
+  class_name?: string; // For display (from serializer)
+  class_id?: number; // For write operations
   level: 'Novice' | 'Intermediate' | 'Advanced';
 }
 
@@ -29,7 +40,8 @@ export interface ScanResult {
 export enum ViewState {
   DASHBOARD = 'DASHBOARD',
   STUDENTS = 'STUDENTS',
-  SCANNER = 'SCANNER',
+  CLASSES = 'CLASSES',
+  EVALUATION = 'EVALUATION',
   HISTORY = 'HISTORY',
   CALIBRATION = 'CALIBRATION',
   BED_TILT_CALIBRATION = 'BED_TILT_CALIBRATION',
@@ -41,6 +53,7 @@ export enum ViewState {
   DATASET_LABELER = 'DATASET_LABELER',
   DATASET_STUDIO = 'DATASET_STUDIO',
   MODEL_MANAGEMENT = 'MODEL_MANAGEMENT',
+  RDK_CONTROL = 'RDK_CONTROL',
   SETTINGS = 'SETTINGS',
 }
 
